@@ -195,16 +195,25 @@ class Datasets:
 
 class Trainer:
     """训练器类
-    处理模型训练、测试、保存和结果可视化
+    用于管理深度学习模型的训练、验证、测试过程，并记录训练结果
+    
+    Attributes:
+        datasets: 包含训练集和测试集的数据集对象
+        model: 要训练的神经网络模型
+        optimizer: 优化器对象，用于更新模型参数
+        loss_fn: 损失函数
+        results_path: 模型和训练结果的保存路径
+        train_df: 用于记录训练过程中的损失值和准确率的DataFrame
     """
     def __init__(self, datasets, model, optimizer, loss_fn, results_path='D:\\ai\\models'):
         """初始化训练器
+        
         Args:
-            datasets: 包含训练和测试数据加载器的数据集对象
+            datasets: 数据集对象，包含训练集和测试集
             model: 要训练的神经网络模型
-            optimizer: 优化器对象，用于更新模型参数
+            optimizer: 优化器对象
             loss_fn: 损失函数
-            results_path: 模型和训练结果的保存路径
+            results_path: 结果保存路径，默认为'D:\\ai\\models'
         """
         self.datasets = datasets
         self.model = model
@@ -213,90 +222,132 @@ class Trainer:
         self.results_path = results_path
         self.train_df = None
 
-    def train_epoch(self, msg_format):
-        """训练一个完整的epoch
-        Args:
-            msg_format: 进度条显示的消息格式字符串
-        Returns:
-            losses: 列表，包含这个epoch中每个batch的损失值
-        """
-        self.model.train()  # 将模型设置为训练模式
-
-        losses = []
-        bar = tqdm(self.datasets.train_loader)
-        for data, target in bar:
-            self.optimizer.zero_grad()    # 清除之前的梯度
-
-            output = self.model(data)     # 前向传播
-            loss = self.loss_fn(output, target)  # 计算损失
-
-            loss.backward()               # 反向传播
-            self.optimizer.step()         # 更新参数
-
-            bar.set_description(msg_format.format(loss.item()))  # 更新进度条描述
-            losses.append(loss.item())
-        return losses
-
-    def test(self):
-        """在测试集上评估模型
-        Returns:
-            test_loss: float, 平均测试损失
-            accuracy: float, 测试准确率
-        """
-        self.model.eval()  # 将模型设置为评估模式
-
-        count = len(self.datasets.test_loader.dataset)
-        test_loss = 0
-        correct = 0
-        with torch.no_grad():  # 不计算梯度
-            for data, target in self.datasets.test_loader:
-                output = self.model(data)
-                # 累加批次损失
-                test_loss += self.loss_fn(output, target).item() * len(data)
-                # 计算正确预测的样本数
-                correct += output.gt(0.5).eq(target.gt(0.5)).sum().item()
-
-        return test_loss / count, correct / count
-
     def train(self, num_epoch):
-        """训练模型指定的轮数
+        """执行模型训练过程
+        
         Args:
-            num_epoch: int, 要训练的总epoch数
+            num_epoch: 训练轮数
+            
+        训练过程包括：
+        1. 在每个epoch中进行训练和验证
+        2. 记录训练和验证的损失值与准确率
+        3. 保存训练结果到DataFrame中
         """
-        val_loss, accuracy = self.test()  # 初始测试
-        all_losses = [[None, val_loss, accuracy]]
+        # 初始化记录训练过程的列表
+        epochs, train_losses, train_accuracies = [], [], []
+        test_losses, test_accuracies = [], []
+        
+        # 开始训练循环
+        for epoch in tqdm(range(num_epoch)):
+            # 训练阶段
+            train_loss, train_accuracy = self._train_one_epoch()
+            # 测试阶段
+            test_loss, test_accuracy = self._test()
+            
+            # 记录训练过程数据
+            epochs.append(epoch)
+            train_losses.append(train_loss)
+            train_accuracies.append(train_accuracy)
+            test_losses.append(test_loss)
+            test_accuracies.append(test_accuracy)
 
-        for epoch in range(num_epoch):
-            # 训练一个epoch
-            train_losses = self.train_epoch(
-                f'train {epoch}/{num_epoch} -- loss: {{:3.2f}}, val_loss: {val_loss:3.2f}, accuracy: {accuracy:.1%}')
+        # 将训练结果保存到DataFrame中
+        self.train_df = pd.DataFrame({
+            'epoch': epochs,
+            'train_loss': train_losses,
+            'train_accuracy': train_accuracies,
+            'test_loss': test_losses,
+            'test_accuracy': test_accuracies,
+        })
 
-            # 测试当前模型性能
-            val_loss, accuracy = self.test()
-            # 记录所有损失值
-            all_losses.extend([
-                [train_loss, None, None]
-                for train_loss in train_losses
-            ])
-            all_losses.append([None, val_loss, accuracy])
+    def _train_one_epoch(self):
+        """执行一个训练epoch
+        
+        Returns:
+            tuple: (平均训练损失, 训练准确率)
+        """
+        self.model.train()  # 设置为训练模式
+        total_loss = 0
+        correct_count = 0
+        
+        # 遍历训练数据集
+        for x, y in self.datasets.train_loader:
+            # 清空梯度
+            self.optimizer.zero_grad()
+            # 前向传播
+            y_pred = self.model(x)
+            # 计算损失
+            loss = self.loss_fn(y_pred, y)
+            # 反向传播
+            loss.backward()
+            # 更新参数
+            self.optimizer.step()
+            
+            # 累计损失和正确预测数
+            total_loss += loss.item()
+            correct_count += ((y_pred > 0.5) == y).sum().item()
 
-        self.save_model()  # 保存模型
-        # 将训练结果保存为CSV文件
-        self.train_df = pd.DataFrame(data=all_losses, columns=["train_loss", "val_loss", "accuracy"])
-        self.train_df.to_csv(join(self.results_path, "train.csv"), index=False)
+        # 计算平均损失和准确率
+        avg_loss = total_loss / len(self.datasets.train_loader)
+        accuracy = correct_count / len(self.datasets.train_loader.dataset)
+        return avg_loss, accuracy
 
-    def save_model(self):
-        """保存模型参数到文件"""
-        torch.save(self.model.state_dict(), join(self.results_path, 'model.pth'))
+    def _test(self):
+        """执行测试/验证
+        
+        Returns:
+            tuple: (平均测试损失, 测试准确率)
+        """
+        self.model.eval()  # 设置为评估模式
+        total_loss = 0
+        correct_count = 0
+        
+        # 关闭梯度计算
+        with torch.no_grad():
+            # 遍历测试数据集
+            for x, y in self.datasets.test_loader:
+                # 前向传播
+                y_pred = self.model(x)
+                # 计算损失
+                loss = self.loss_fn(y_pred, y)
+                
+                # 累计损失和正确预测数
+                total_loss += loss.item()
+                correct_count += ((y_pred > 0.5) == y).sum().item()
+
+        # 计算平均损失和准确率
+        avg_loss = total_loss / len(self.datasets.test_loader)
+        accuracy = correct_count / len(self.datasets.test_loader.dataset)
+        return avg_loss, accuracy
 
     def plot(self):
-        """绘制训练过程中的损失和准确率曲线"""
+        """绘制训练过程中的损失和准确率曲线
+        
+        生成两个子图：
+        1. 训练集和测试集的损失曲线
+        2. 训练集和测试集的准确率曲线
+        """
         import matplotlib.pyplot as plt
-        # 绘制训练损失和验证损失曲线
-        self.train_df[["train_loss", "val_loss"]].ffill().plot(title="loss", grid=True, logy=False)
+        
+        # 创建包含两个子图的图表
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+        
+        # 绘制损失曲线
+        ax1.plot(self.train_df['epoch'], self.train_df['train_loss'], label='train')
+        ax1.plot(self.train_df['epoch'], self.train_df['test_loss'], label='test')
+        ax1.set_xlabel('epoch')
+        ax1.set_ylabel('loss')
+        ax1.legend()
+        
         # 绘制准确率曲线
-        self.train_df[["accuracy"]].dropna().plot(title="accuracy", grid=True)
-        plt.show()
+        ax2.plot(self.train_df['epoch'], self.train_df['train_accuracy'], label='train')
+        ax2.plot(self.train_df['epoch'], self.train_df['test_accuracy'], label='test')
+        ax2.set_xlabel('epoch')
+        ax2.set_ylabel('accuracy')
+        ax2.legend()
+        
+        # 保存图表
+        plt.savefig(join(self.results_path, 'train_process.png'))
 
 
 def train():
