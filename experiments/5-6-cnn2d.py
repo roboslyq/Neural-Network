@@ -5,15 +5,34 @@ import pandas as pd
 import torchvision
 import torch
 import torch.nn as nn
+"""
+二维CNN实验：MNIST手写数字识别
+目标：实现不同架构的CNN和全连接网络，比较它们在MNIST数据集上的表现
 
+实现了以下模型：
+1. FC1Model: 单层全连接网络
+2. FC2Model: 双层全连接网络
+3. FC3Model: 三层全连接网络
+4. Conv1Model: 单层CNN
+5. Conv2Model: 双层CNN
+6. Conv3Model: 三层CNN
+"""
 
 class Datasets:
+    """数据集管理类：加载MNIST数据集"""
     def __init__(self, dataset_path, batch_size):
+        """初始化数据加载器
+        Args:
+            dataset_path: 数据集保存路径
+            batch_size: 批次大小
+        """
+        # 加载训练集
         self.train_loader = torch.utils.data.DataLoader(
           torchvision.datasets.MNIST(dataset_path, train=True, download=True,
                                      transform=torchvision.transforms.ToTensor()),
           batch_size=batch_size, shuffle=True)
 
+        # 加载测试集
         self.test_loader = torch.utils.data.DataLoader(
           torchvision.datasets.MNIST(dataset_path, train=False, download=True,
                                      transform=torchvision.transforms.ToTensor()),
@@ -21,36 +40,42 @@ class Datasets:
 
 
 class FC1Model(nn.Module):
+    """单层全连接网络
+    直接将图像展平后通过一个全连接层分类
+    """
     def __init__(self):
         super(FC1Model, self).__init__()
-
-        self.flatten = nn.Flatten()
-        self.fc = nn.Linear(in_features=784, out_features=10)
+        self.flatten = nn.Flatten()  # 展平层
+        self.fc = nn.Linear(in_features=784, out_features=10)  # 全连接层
 
     def forward(self, x):
-        """
+        """前向传播
         Args:
-            x: [N,C_{in},H_{in},W_{in}]
+            x: [批次大小,通道数,高度,宽度]
+        Returns:
+            对数概率分布
         """
-        o1 = self.flatten(x)
-        o2 = self.fc(o1)
-        o3 = torch.log_softmax(o2, dim=-1)
+        o1 = self.flatten(x)  # 展平图像
+        o2 = self.fc(o1)     # 全连接层
+        o3 = torch.log_softmax(o2, dim=-1)  # 计算对数概率
         return o3
 
 
 class FC2Model(nn.Module):
+    """双层全连接网络
+    包含一个隐藏层和ReLU激活函数
+    """
     def __init__(self):
         super(FC2Model, self).__init__()
-
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(in_features=784, out_features=100)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(in_features=100, out_features=10)
+        self.fc1 = nn.Linear(in_features=784, out_features=100)  # 第一个全连接层
+        self.relu = nn.ReLU()  # ReLU激活函数
+        self.fc2 = nn.Linear(in_features=100, out_features=10)   # 第二个全连接层
 
     def forward(self, x):
-        """
+        """前向传播
         Args:
-            x: [N,1,28,28]
+            x: [批次大小,1,28,28]
         """
         o1 = self.flatten(x)
         o2 = self.fc1(o1)

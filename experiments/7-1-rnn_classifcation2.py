@@ -6,6 +6,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 """
+RNN 的embedding相关
+
 这段代码实现了一个更复杂的序列分类任务：
 1、生成随机的0-9数字序列，找出序列中出现次数最多的数字作为标签
 2、提供了两种模型实现：

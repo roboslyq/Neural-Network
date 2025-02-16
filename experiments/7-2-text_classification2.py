@@ -7,31 +7,50 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from torchtext.data import get_tokenizer
+"""
+RNN文本分类实现2 - 改进版本
+目标：使用更高级的分词方法和词表裁剪策略改进IMDB情感分类
 
+主要改进：
+1. 使用spaCy进行更准确的分词
+2. 基于词频进行词表裁剪，减少低频词
+3. 添加了GetIndex模块处理序列长度
+"""
 print("loading dataset...")
 train_iter, test_iter = IMDB("datasets", split=('train', 'test'))
 
-# tokenize
+# 分词设置
 USING_SPACY = True
+# 使用spaCy分词器或简单的空格分割
 tokenizer = get_tokenizer("spacy", "en_core_web_sm") if USING_SPACY else lambda x: x.split()
 
 
 def tokenize(text):
+    """文本分词函数
+    使用spaCy或简单分词，并转换为小写
+    Args:
+        text: 输入文本
+    Returns:
+        分词后的token列表
+    """
     return [t.lower() for t in tokenizer(text)]
 
 
+# 对训练集和测试集进行分词
 train_set = [(label, tokenize(line)) for label, line in tqdm(train_iter, desc="tokenizing trainset...")]
 test_set = [(label, tokenize(line)) for label, line in tqdm(test_iter, desc="tokenizing testset...")]
 
+# 获取最大序列长度
 MAX_SEQ_LENGTH = max([len(tokens) for (_, tokens) in train_set])
 print("max sequence length:", MAX_SEQ_LENGTH)
 
-# vocab
+# 词表构建和裁剪
 words_series = pd.Series([t for (_, tokens) in train_set for t in tokens])
 word_counts = words_series.value_counts()
 vocab_size = len(word_counts)
 print("vocab size:", vocab_size)
 
+# 只保留出现次数大于MIN_WORD_COUNT的词
 MIN_WORD_COUNT = 50
 truncated_word_counts = word_counts[word_counts >= MIN_WORD_COUNT]
 truncated_vocab_size = len(truncated_word_counts)
@@ -39,12 +58,14 @@ print("truncated vocab size:", truncated_vocab_size)
 print(f"Retention: {truncated_vocab_size/vocab_size:.1%}")
 vocab = sorted(truncated_word_counts.index)
 
+# 添加特殊token
 PADDING_IDX = 0
-vocab.insert(PADDING_IDX, "<padding>")
+vocab.insert(PADDING_IDX, "<padding>")  # 用于填充序列
 
 UNKNOWN_IDX = 1
-vocab.insert(UNKNOWN_IDX, "<unknown>")
+vocab.insert(UNKNOWN_IDX, "<unknown>")  # 用于处理未知词
 
+# 创建映射字典
 token2idx = {token: idx for idx, token in enumerate(vocab)}
 labels = ["neg", "pos"]
 label2idx = {label: idx for idx, label in enumerate(labels)}
@@ -82,48 +103,69 @@ class Datasets:
 
 
 class GetIndex(nn.Module):
+    """序列长度处理模块
+    用于获取序列中最后一个非填充位置的索引
+    """
     def __init__(self):
         super(GetIndex, self).__init__()
 
     def forward(self, x):
-        """
+        """前向传播
         Args:
-            x: [N,20]
+            x: 输入序列，形状为 [批次大小,序列长度]
+        Returns:
+            最后一个非填充位置的索引
         """
-        o1 = torch.gt(x, other=0.0)
-        o2 = torch.sum(o1, dim=1, keepdim=True)
-        o3 = torch.sub(o2, other=1.0)
-        o4 = o3.long()
-        o5 = torch.unsqueeze(o4, dim=-1)
-        o6 = o5.expand(-1, -1, 50)
+        o1 = torch.gt(x, other=0.0)  # 找出非填充位置(>0)
+        o2 = torch.sum(o1, dim=1, keepdim=True)  # 计算非填充token的数量
+        o3 = torch.sub(o2, other=1.0)  # 减1得到最后位置的索引
+        o4 = o3.long()  # 转换为整数类型
+        o5 = torch.unsqueeze(o4, dim=-1)  # 增加维度
+        o6 = o5.expand(-1, -1, 50)  # 扩展维度以匹配隐藏状态
         return o6
 
 
 class TextClassifier(nn.Module):
+    """改进的文本分类模型
+    使用GetIndex模块处理变长序列
+    """
     def __init__(self, embedding_dim, num_embeddings, hidden_size):
+        """初始化模型
+        Args:
+            embedding_dim: 词嵌入维度
+            num_embeddings: 词表大小
+            hidden_size: LSTM隐藏层维度
+        """
         super(TextClassifier, self).__init__()
 
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
         self.hidden_size = hidden_size
 
+        # 词嵌入层
         self.embedding = nn.Embedding(num_embeddings=num_embeddings, embedding_dim=hidden_size)
+        # 序列长度处理模块
         self.getindex = GetIndex()
+        # LSTM层
         self.lstm = nn.LSTM(input_size=hidden_size, hidden_size=hidden_size, batch_first=True)
+        # 分类层
         self.fc = nn.Linear(in_features=hidden_size, out_features=2)
 
     def forward(self, x):
-        """
+        """前向传播
         Args:
-            x: [N,20]
+            x: 输入序列，形状为 [批次大小,序列长度]
+        Returns:
+            分类的对数概率
         """
-        o1 = self.embedding(x)
-        o2 = self.getindex(x)
-        o3 = self.lstm(o1)
-        o4 = torch.gather(o3[0], index=o2, dim=1)
-        o5 = torch.squeeze(o4)
-        o6 = self.fc(o5)
-        o7 = torch.log_softmax(o6, dim=-1)
+        o1 = self.embedding(x)  # 词嵌入
+        o2 = self.getindex(x)   # 获取序列实际长度
+        o3 = self.lstm(o1)      # LSTM处理
+        # 根据实际长度获取对应位置的隐藏状态
+        o4 = torch.gather(o3[0], index=o2, dim=1)  
+        o5 = torch.squeeze(o4)  # 压缩维度
+        o6 = self.fc(o5)        # 全连接分类
+        o7 = torch.log_softmax(o6, dim=-1)  # 计算对数概率
         return o7
 
 
@@ -211,18 +253,22 @@ class Trainer:
 
 
 def train():
-    torch.manual_seed(0)
-    datasets = Datasets(300, max_length=400)
+    """主训练函数"""
+    torch.manual_seed(0)  # 设置随机种子
+    datasets = Datasets(300, max_length=400)  # 创建数据集
 
+    # 创建模型和训练组件
     model = TextClassifier(num_embeddings=len(vocab), embedding_dim=50, hidden_size=50)
-
-    loss_fn = torch.nn.NLLLoss()
+    loss_fn = torch.nn.NLLLoss()  # 使用负对数似然损失
+    # 添加权重衰减以防止过拟合
     optimizer = torch.optim.Adam(model.parameters(), lr=0.003, weight_decay=0.0004)
+    
+    # 创建训练器并开始训练
     trainer = Trainer(datasets, model=model, optimizer=optimizer,
                       loss_fn=loss_fn, results_path="results")
 
-    trainer.train(num_epoch=30)
-    trainer.plot()
+    trainer.train(num_epoch=30)  # 训练30个epoch
+    trainer.plot()  # 绘制训练结果
 
 
 if __name__ == "__main__":

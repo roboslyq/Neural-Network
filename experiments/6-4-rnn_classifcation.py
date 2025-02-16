@@ -5,7 +5,9 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
-
+"""
+RNN分类实现
+"""
 
 def obj_func(xs):
     """计算序列中0和1的数量并进行分类

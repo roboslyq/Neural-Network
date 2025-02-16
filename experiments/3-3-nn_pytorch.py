@@ -1,9 +1,11 @@
 # 导入必要的PyTorch库
 import torch                    # PyTorch基础库
-import torch.nn as nn          # 神经网络模块
+import torch.nn as nn           # 神经网络模块
 import torch.nn.functional as F # 函数式接口
-import torch.optim as optim    # 优化器
-
+import torch.optim as optim     # 优化器
+"""
+使用pytorch包重写3-2-nn_from_scratch.py逻辑
+"""
 
 # 定义目标函数：判断点(x,y)是否在单位圆内
 # 返回值：如果点在圆内返回1.0，否则返回0.0
@@ -22,7 +24,7 @@ xs = torch.FloatTensor([
 # 生成对应的标签：对每个采样点，计算其是否在单位圆内
 ys = torch.FloatTensor([
     [o(x, y)]
-    for x, y in xs
+    for x, y in xs 
 ])
 
 

@@ -4,7 +4,9 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
-
+"""
+一维CNN实验
+"""
 
 class FC1Model(nn.Module):
     """单层全连接神经网络模型

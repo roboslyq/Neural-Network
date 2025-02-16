@@ -5,11 +5,29 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
+"""
+RNN自动编码器实现
+目标：使用RNN实现序列的自动编码器，学习将序列压缩后还原
 
+主要特点：
+1. 使用编码器RNN将输入序列编码为隐藏状态
+2. 使用解码器RNN从隐藏状态重建输入序列
+3. 通过最小化重建误差来训练模型
+"""
 
 class RepeaterDataset(torch.utils.data.Dataset):
+    """序列复制数据集
+    生成随机的二进制序列，目标是重建相同的序列
+    """
     def __init__(self, total_count, length):
+        """初始化数据集
+        Args:
+            total_count: 样本总数
+            length: 序列长度
+        """
+        # 生成随机的0-1序列
         self.data = torch.randint(0, 2, (total_count, length, 1)).type(torch.FloatTensor)
+        # 目标就是输入序列本身
         self.labels = self.data
 
     def __len__(self):
@@ -20,45 +38,71 @@ class RepeaterDataset(torch.utils.data.Dataset):
 
 
 class Datasets:
+    """数据集管理类：创建训练集和测试集的数据加载器"""
     def __init__(self, batch_size, total_count=1000, length=15):
-        self.train_loader = torch.utils.data.DataLoader(RepeaterDataset(total_count, length), batch_size=batch_size,
-                                                        shuffle=True)
-        self.test_loader = torch.utils.data.DataLoader(RepeaterDataset(total_count, length), batch_size=batch_size * 2,
-                                                       shuffle=True)
+        # 创建训练数据加载器
+        self.train_loader = torch.utils.data.DataLoader(
+            RepeaterDataset(total_count, length), 
+            batch_size=batch_size, shuffle=True)
+        # 创建测试数据加载器
+        self.test_loader = torch.utils.data.DataLoader(
+            RepeaterDataset(total_count, length), 
+            batch_size=batch_size * 2, shuffle=True)
 
 
 class RNNAutoencoder(nn.Module):
+    """RNN自动编码器模型
+    使用两个RNN：一个编码器和一个解码器
+    """
     def __init__(self, hidden_size=256):
+        """初始化模型
+        Args:
+            hidden_size: RNN隐藏层的维度，默认256
+        """
         super(RNNAutoencoder, self).__init__()
-
         self.hidden_size = hidden_size
 
+        # 编码器RNN：将输入序列编码为隐藏状态
         self.rnn1 = nn.RNN(input_size=1, hidden_size=hidden_size, batch_first=True)
+        # 解码器RNN：从隐藏状态重建序列
         self.rnn2 = nn.RNN(input_size=1, hidden_size=hidden_size, batch_first=True)
+        # 输出层：将RNN输出映射到标量值
         self.fc = nn.Linear(in_features=hidden_size, out_features=1)
 
     def forward(self, x):
-        """
+        """前向传播
         Args:
-            x: [N,L,1]
+            x: 输入序列，形状为 [批次大小,序列长度,1]
+        Returns:
+            重建的序列
         """
-        o1 = x.size()
-        o2 = self.rnn1(x)
-        o3 = torch.ones(size=o1)
-        o4 = self.rnn2(o3, o2[1])
-        o5 = self.fc(o4[0])
-        o6 = torch.sigmoid(o5)
+        o1 = x.size()  # 获取输入形状
+        o2 = self.rnn1(x)  # 编码器RNN
+        # 创建全1序列作为解码器输入
+        o3 = torch.ones(size=o1)  
+        # 使用编码器的隐藏状态初始化解码器
+        o4 = self.rnn2(o3, o2[1])  
+        o5 = self.fc(o4[0])  # 输出层
+        o6 = torch.sigmoid(o5)  # sigmoid激活
         return o6
 
 
 class Trainer:
+    """训练器类：处理模型训练、测试、保存和可视化"""
     def __init__(self, datasets, model, optimizer, loss_fn, results_path='results'):
+        """初始化训练器
+        Args:
+            datasets: 数据集对象
+            model: 神经网络模型
+            optimizer: 优化器
+            loss_fn: 损失函数
+            results_path: 结果保存路径
+        """
         self.datasets = datasets
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.results_path = results_path
-
         self.train_df = None
 
     def train_epoch(self, msg_format):
@@ -129,31 +173,36 @@ class Trainer:
 
 
 def train():
-    torch.manual_seed(0)
-    length = 10
+    """主训练函数"""
+    torch.manual_seed(0)  # 设置随机种子
+    length = 10  # 序列长度
     datasets = Datasets(100, total_count=5000, length=length)
 
+    # 创建模型和训练组件
     model = RNNAutoencoder(hidden_size=5)
-
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.MSELoss()  # 使用均方误差损失
     optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
     trainer = Trainer(datasets, model=model, optimizer=optimizer,
                       loss_fn=loss_fn, results_path="results")
 
+    # 训练模型
     trainer.train(num_epoch=1000)
 
+    # 测试模型性能
     for i in range(5):
+        # 生成随机测试序列
         test_x = torch.randint(0, 2, (1, length, 1)).type(torch.FloatTensor)
         test_y = test_x
         print(f"----- {i} -----")
+        # 打印输入序列
         print(test_x.flatten().type(torch.IntTensor).tolist())
-
+        # 预测并打印重建序列
         predict = model(test_x)
         print(predict.round().flatten().type(torch.IntTensor).tolist())
-
+        # 打印重建准确率
         print(f"{predict.round().eq(test_y.round()).sum().item() / length:.0%}")
 
-    trainer.plot()
+    trainer.plot()  # 绘制训练结果
 
 
 if __name__ == "__main__":

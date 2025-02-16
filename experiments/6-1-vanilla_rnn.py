@@ -5,7 +5,9 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
-
+"""
+最基础的RNN
+"""
 
 def obj_func(xs):
     """计算累积和函数
