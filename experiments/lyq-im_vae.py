@@ -19,7 +19,7 @@ import torch  # PyTorch深度学习框架
 import torch.nn as nn  # 神经网络模块
 import torch.nn.functional as F  # 常用函数
 from torch.utils.data import DataLoader  # 数据加载器
-import torchvision  # 计算机视觉工具
+import torchvision                  # 计算机视觉工具
 from torchvision import transforms  # 图像变换工具
 
 from tqdm import tqdm  # 进度条
@@ -37,7 +37,7 @@ transform = transforms.Compose([
 # 加载MNIST数据集
 # MNIST是一个手写数字数据集，包含0-9的手写数字图片
 train_dataset = torchvision.datasets.MNIST(
-    root='datasets',  # 数据集保存路径
+    root='datasets',            # 数据集保存路径
     train=True,  # 训练集
     transform=transform,  # 使用上面定义的转换
     download=True  # 如果没有则下载
@@ -108,10 +108,15 @@ class VAE(nn.Module):
         )
 
         # 分类器层：用于识别数字（0-9）
+        # nn.Sequential 是 PyTorch 中的一个容器模块，它可以按照顺序依次执行一系列的神经网络层。
         self.classifier = nn.Sequential(
+            # 第一个全连接层，将输入维度从 latent_dim 映射到 64
             nn.Linear(latent_dim, 64),
+            # 激活函数，引入非线性
             nn.ReLU(),
+            # 第二个全连接层，将维度从 64 映射到 10
             nn.Linear(64, 10),  # 10个数字类别
+            # 对数 softmax 函数，输出概率分布
             nn.LogSoftmax(dim=1)  # 输出概率分布
         )
 
@@ -341,7 +346,7 @@ def test_image(image_path):
     """
     # 加载模型
     device = torch.device("cpu")
-    model = VAE().to(device)
+    model = VAE().tod(device)
     model.load_state_dict(torch.load("D:\\ai\\models\\model.pth"))
     model.eval()
 
@@ -384,4 +389,4 @@ if __name__ == "__main__":
     
     # 等待训练完成后，再测试图片
     test_image("C:\\Users\\Administrator\\Desktop\\mnist_jpg\\test_0_7.jpg") 
-    test_image("C:\\Users\\Administrator\\Desktop\\mnist_jpg\\test_20_9.jpg") 
+    # test_image("C:\\Users\\Administrator\\Desktop\\mnist_jpg\\test_20_9.jpg") 
