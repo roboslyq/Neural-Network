@@ -117,7 +117,7 @@ class VAE(nn.Module):
             # 第二个全连接层，将维度从 64 映射到 10
             nn.Linear(64, 10),  # 10个数字类别
             # 对数 softmax 函数，输出概率分布
-            nn.LogSoftmax(dim=1)  # 输出概率分布
+            nn.LogSoftmax(dim=1)  # 输出概率分布，模型经过 nn.LogSoftmax 层输出的对数概率向量（即 output），其元素的顺序与识别结果数字的顺序是一一对应的。
         )
 
     def encode(self, x):
