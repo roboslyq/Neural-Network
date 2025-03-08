@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二元函数可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.24.1/plotly.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="function-type">
+        <button data-type="linear2d" class="active">线性函数</button>
+        <button data-type="sigmoid2d">Sigmoid函数</button>
+        <button data-type="relu2d">ReLU函数</button>
+        <button data-type="tanh2d">Tanh函数</button>
+        <button data-type="relu62d">ReLU6函数</button>
+        <button data-type="leakyrelu2d">LeakyReLU函数</button>
+        <button data-type="elu2d">ELU函数</button>
+        <button data-type="softplus2d">Softplus函数</button>
+        <button data-type="softmax2d">Softmax函数</button>
+    </div>
+    
+    <div class="visualization">
+        <div class="chart-container">
+            <div id="plot3d" class="plot-container"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="parameter">
+                <label for="w1_2d">权重 (w<sub>1</sub>): <span id="w1_2dValue" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w1_2d" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="w2_2d">权重 (w<sub>2</sub>): <span id="w2_2dValue" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w2_2d" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="b_2d">偏置 (b): <span id="b_2dValue" class="value">0</span></label>
+                <div class="slider-container">
+                    <input type="range" id="b_2d" min="-5" max="5" step="0.1" value="0">
+                </div>
+            </div>
+            
+            <div class="parameter alpha-param-2d hidden">
+                <label for="alpha_2d">斜率 (α): <span id="alpha_2dValue" class="value">0.01</span></label>
+                <div class="slider-container">
+                    <input type="range" id="alpha_2d" min="0.01" max="0.5" step="0.01" value="0.01">
+                </div>
+            </div>
+            
+            <div class="formula" id="formula_2d">
+                g(x<sub>1</sub>, x<sub>2</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b = 0.5 × x<sub>1</sub> + 0.5 × x<sub>2</sub> + 0
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化
+        let current2dFunctionType = 'linear2d';
+        let plot3d = null;
+        
+        // 初始化3D图表
+        function init3DPlot() {
+            const data = generateSurfaceData();
+            const layout = {
+                autosize: true,
+                margin: {l: 0, r: 0, t: 0, b: 0},
+                scene: {
+                    xaxis: {
+                        title: {
+                            text: 'x₁',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'x₂',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    zaxis: {
+                        title: {
+                            text: 'g(x₁,x₂)',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-10, 10]
+                    },
+                    camera: {
+                        eye: {x: 1.5, y: 1.5, z: 1.2}
+                    }
+                }
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                locale: 'zh-CN',
+                locales: {
+                    'zh-CN': {
+                        'zoom': '缩放',
+                        'pan': '平移',
+                        'orbitRotation': '旋转',
+                        'resetCameraDefault3d': '重置视图',
+                        'resetCameraLastSave3d': '重置为上次保存的视图',
+                        'toImage': '下载为图片',
+                        'sendDataToCloud': '发送到云端',
+                        'toggleHover': '切换悬停信息',
+                        'resetScale2d': '重置坐标轴',
+                        'hoverClosest3d': '悬停显示',
+                        'toggleSpikelines': '切换标线',
+                        'resetViewMapbox': '重置地图视图'
+                    }
+                }
+            };
+            
+            plot3d = Plotly.newPlot('plot3d', data, layout, config);
+        }
+        
+        // 生成3D图表数据
+        function generateSurfaceData() {
+            const w1 = parseFloat(document.getElementById('w1_2d').value);
+            const w2 = parseFloat(document.getElementById('w2_2d').value);
+            const b = parseFloat(document.getElementById('b_2d').value);
+            let alpha = 0.01;
+            
+            if (document.querySelector('.alpha-param-2d:not(.hidden)')) {
+                alpha = parseFloat(document.getElementById('alpha_2d').value);
+            }
+            
+            // 更新公式
+            updateFormula2d(w1, w2, b, alpha);
+            
+            // 配置颜色映射
+            let colorscale;
+            if (current2dFunctionType === 'linear2d' || current2dFunctionType === 'leakyrelu2d') {
+                colorscale = [
+                    [0, 'rgb(13,71,161)'],
+                    [0.5, 'rgb(240,240,240)'],
+                    [1, 'rgb(183,28,28)']
+                ];
+            } else if (current2dFunctionType === 'sigmoid2d' || current2dFunctionType === 'softmax2d') {
+                colorscale = [
+                    [0, 'rgb(211,47,47)'],
+                    [0.5, 'rgb(244,143,177)'],
+                    [1, 'rgb(255,255,255)']
+                ];
+            } else if (current2dFunctionType === 'relu2d' || current2dFunctionType === 'relu62d' || current2dFunctionType === 'softplus2d') {
+                colorscale = [
+                    [0, 'rgb(27,94,32)'],
+                    [0.5, 'rgb(156,204,101)'],
+                    [1, 'rgb(220,237,200)']
+                ];
+            } else if (current2dFunctionType === 'tanh2d' || current2dFunctionType === 'elu2d') {
+                colorscale = [
+                    [0, 'rgb(40,53,147)'],
+                    [0.5, 'rgb(240,240,240)'],
+                    [1, 'rgb(198,40,40)']
+                ];
+            }
+            
+            // 创建3D图数据结构
+            let x = [];
+            let y = [];
+            let z = [];
+            
+            const resolution = 50;  // 点的分辨率
+            
+            // 对于Softmax，我们需要特殊处理
+            if (current2dFunctionType === 'softmax2d') {
+                // 计算x, y全部组合的二维softmax
+                let points = [];
+                for (let i = -2; i <= 2; i += 4/resolution) {
+                    for (let j = -2; j <= 2; j += 4/resolution) {
+                        points.push({x: i, y: j, logit: w1 * i + w2 * j + b});
+                    }
+                }
+                
+                // 计算分母(所有点的指数和)
+                const sumExp = points.reduce((sum, p) => sum + Math.exp(p.logit), 0);
+                
+                for (let i = 0; i < resolution + 1; i++) {
+                    const xRow = [];
+                    const yRow = [];
+                    const zRow = [];
+                    
+                    for (let j = 0; j < resolution + 1; j++) {
+                        const idx = i * (resolution + 1) + j;
+                        if (idx < points.length) {
+                            const p = points[idx];
+                            
+                            xRow.push(p.x);
+                            yRow.push(p.y);
+                            zRow.push(Math.exp(p.logit) / sumExp);
+                        }
+                    }
+                    
+                    if (xRow.length > 0) {
+                        x.push(xRow);
+                        y.push(yRow);
+                        z.push(zRow);
+                    }
+                }
+            } else {
+                // 常规函数的处理
+                for (let i = -2; i <= 2; i += 4/resolution) {
+                    const xRow = [];
+                    const yRow = [];
+                    const zRow = [];
+                    
+                    for (let j = -2; j <= 2; j += 4/resolution) {
+                        xRow.push(i);
+                        yRow.push(j);
+                        
+                        // 计算函数值
+                        const expr = w1 * i + w2 * j + b;
+                        let zVal;
+                        
+                        if (current2dFunctionType === 'linear2d') {
+                            zVal = expr;
+                        } else if (current2dFunctionType === 'sigmoid2d') {
+                            zVal = 1 / (1 + Math.exp(-expr));
+                        } else if (current2dFunctionType === 'tanh2d') {
+                            zVal = Math.tanh(expr);
+                        } else if (current2dFunctionType === 'relu2d') {
+                            zVal = Math.max(0, expr);
+                        } else if (current2dFunctionType === 'relu62d') {
+                            zVal = Math.min(Math.max(0, expr), 6);
+                        } else if (current2dFunctionType === 'leakyrelu2d') {
+                            zVal = expr > 0 ? expr : alpha * expr;
+                        } else if (current2dFunctionType === 'elu2d') {
+                            zVal = expr > 0 ? expr : alpha * (Math.exp(expr) - 1);
+                        } else if (current2dFunctionType === 'softplus2d') {
+                            zVal = Math.log(1 + Math.exp(expr));
+                        }
+                        
+                        zRow.push(zVal);
+                    }
+                    
+                    x.push(xRow);
+                    y.push(yRow);
+                    z.push(zRow);
+                }
+            }
+            
+            // 创建曲面图数据
+            return [{
+                type: 'surface',
+                x: x,
+                y: y,
+                z: z,
+                colorscale: colorscale,
+                showscale: false,
+                contours: {
+                    z: {
+                        show: true,
+                        usecolormap: true,
+                        highlightcolor: "#42a5f5",
+                        project: {z: true}
+                    }
+                }
+            }];
+        }
+        
+        // 更新二元函数图表
+        function update3DPlot() {
+            const data = generateSurfaceData();
+            Plotly.react('plot3d', data);
+            
+            // 通知父窗口函数类型已更改
+            window.parent.postMessage({
+                type: 'functionChanged',
+                dimension: '2d',
+                functionType: current2dFunctionType
+            }, '*');
+        }
+        
+        // 更新二元函数公式显示
+        function updateFormula2d(w1, w2, b, alpha = 0.01) {
+            let formula;
+            if (current2dFunctionType === 'linear2d') {
+                formula = `g(x<sub>1</sub>, x<sub>2</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b = ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}`;
+            } else if (current2dFunctionType === 'sigmoid2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = 1/(1+e<sup>-(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})</sup>)`;
+            } else if (current2dFunctionType === 'tanh2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            } else if (current2dFunctionType === 'relu2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            } else if (current2dFunctionType === 'relu62d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = ReLU6(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = min(max(0, ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}), 6)`;
+            } else if (current2dFunctionType === 'leakyrelu2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = LeakyReLU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b} : ${alpha} × (${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            } else if (current2dFunctionType === 'elu2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = ELU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b} : ${alpha} × (e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}</sup> - 1)`;
+            } else if (current2dFunctionType === 'softplus2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = Softplus(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = log(1 + e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}</sup>)`;
+            } else if (current2dFunctionType === 'softmax2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = Softmax(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}</sup> / Σe<sup>z</sup>`;
+            }
+            document.getElementById('formula_2d').innerHTML = formula;
+        }
+        
+        // 添加二元函数事件监听器
+        document.getElementById('w1_2d').addEventListener('input', function() {
+            document.getElementById('w1_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        document.getElementById('w2_2d').addEventListener('input', function() {
+            document.getElementById('w2_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        document.getElementById('b_2d').addEventListener('input', function() {
+            document.getElementById('b_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        document.getElementById('alpha_2d').addEventListener('input', function() {
+            document.getElementById('alpha_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        // 二元函数类型切换
+        document.querySelectorAll('.function-type button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.function-type button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                current2dFunctionType = this.dataset.type;
+                
+                // 显示/隐藏alpha参数
+                if (current2dFunctionType === 'leakyrelu2d' || current2dFunctionType === 'elu2d') {
+                    document.querySelector('.alpha-param-2d').classList.remove('hidden');
+                } else {
+                    document.querySelector('.alpha-param-2d').classList.add('hidden');
+                }
+                
+                update3DPlot();
+            });
+        });
+        
+        // 接收来自父窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'requestCurrentFunction') {
+                window.parent.postMessage({
+                    type: 'functionChanged',
+                    dimension: '2d',
+                    functionType: current2dFunctionType
+                }, '*');
+            }
+        });
+        
+        // 确保DOM元素加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化3D图表
+            init3DPlot();
+            
+            // 创建一个canvas 2D上下文对象并设置willReadFrequently属性为true
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                canvas.getContext('2d', { willReadFrequently: true });
+            });
+        });
+    </script>
+</body>
+</html>

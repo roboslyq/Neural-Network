@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神经网络函数可视化</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
+            display: block;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>一元线性函数可视化</h1>
+        
+        <div class="dimension-switch">
+            <button data-dim="1d" class="active">一元函数</button>
+            <button data-dim="2d">二元函数</button>
+            <button data-dim="3d">三元函数</button>
+        </div>
+        
+        <div id="frame-container">
+            <iframe id="iframe-1d" src="function1d.html" frameborder="0"></iframe>
+            <iframe id="iframe-2d" src="function2d.html" class="hidden" frameborder="0"></iframe>
+            <iframe id="iframe-3d" src="function3d.html" class="hidden" frameborder="0"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // 初始化当前显示的是哪种维度
+        let currentDimension = '1d';
+        
+        // 初始化函数类型名称映射
+        const functionTitles = {
+            '1d': {
+                'linear': '线性函数可视化',
+                'sigmoid': 'Sigmoid函数可视化',
+                'relu': 'ReLU函数可视化',
+                'tanh': 'Tanh函数可视化',
+                'relu6': 'ReLU6函数可视化',
+                'leakyrelu': 'LeakyReLU函数可视化',
+                'elu': 'ELU函数可视化',
+                'softplus': 'Softplus函数可视化',
+                'softmax': 'Softmax函数可视化'
+            },
+            '2d': {
+                'linear2d': '二元线性函数可视化',
+                'sigmoid2d': '二元Sigmoid函数可视化',
+                'relu2d': '二元ReLU函数可视化',
+                'tanh2d': '二元Tanh函数可视化',
+                'relu62d': '二元ReLU6函数可视化',
+                'leakyrelu2d': '二元LeakyReLU函数可视化',
+                'elu2d': '二元ELU函数可视化',
+                'softplus2d': '二元Softplus函数可视化',
+                'softmax2d': '二元Softmax函数可视化'
+            },
+            '3d': {
+                'linear3d': '三元线性函数可视化',
+                'sigmoid3d': '三元Sigmoid函数可视化',
+                'relu3d': '三元ReLU函数可视化',
+                'tanh3d': '三元Tanh函数可视化',
+                'relu63d': '三元ReLU6函数可视化',
+                'leakyrelu3d': '三元LeakyReLU函数可视化',
+                'elu3d': '三元ELU函数可视化',
+                'softplus3d': '三元Softplus函数可视化',
+                'softmax3d': '三元Softmax函数可视化'
+            }
+        };
+        
+        // 接收来自iframe的消息
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'functionChanged') {
+                const dim = event.data.dimension;
+                const funcType = event.data.functionType;
+                
+                // 更新标题
+                if (functionTitles[dim] && functionTitles[dim][funcType]) {
+                    document.querySelector('h1').textContent = functionTitles[dim][funcType];
+                }
+            }
+        });
+        
+        // 维度切换
+        document.querySelectorAll('.dimension-switch button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.dimension-switch button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                const dimension = this.dataset.dim;
+                currentDimension = dimension;
+                
+                // 隐藏所有iframe
+                document.getElementById('iframe-1d').classList.add('hidden');
+                document.getElementById('iframe-2d').classList.add('hidden');
+                document.getElementById('iframe-3d').classList.add('hidden');
+                
+                // 显示选中的iframe
+                document.getElementById('iframe-' + dimension).classList.remove('hidden');
+                
+                // 通知iframe更新标题
+                document.getElementById('iframe-' + dimension).contentWindow.postMessage({
+                    type: 'requestCurrentFunction'
+                }, '*');
+            });
+        });
+    </script>
+</body>
+</html> 

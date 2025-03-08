@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一元函数可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="function-type">
+        <button data-type="linear" class="active">线性函数</button>
+        <button data-type="sigmoid">Sigmoid函数</button>
+        <button data-type="relu">ReLU函数</button>
+        <button data-type="tanh">Tanh函数</button>
+        <button data-type="relu6">ReLU6函数</button>
+        <button data-type="leakyrelu">LeakyReLU函数</button>
+        <button data-type="elu">ELU函数</button>
+        <button data-type="softplus">Softplus函数</button>
+        <button data-type="softmax">Softmax函数</button>
+    </div>
+    
+    <div class="visualization">
+        <div class="chart-container">
+            <canvas id="functionChart"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="parameter">
+                <label for="w1">权重 (w<sub>1</sub>): <span id="w1Value" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w1" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="b">偏置 (b): <span id="bValue" class="value">0</span></label>
+                <div class="slider-container">
+                    <input type="range" id="b" min="-5" max="5" step="0.1" value="0">
+                </div>
+            </div>
+            
+            <div class="parameter alpha-param hidden">
+                <label for="alpha">斜率 (α): <span id="alphaValue" class="value">0.01</span></label>
+                <div class="slider-container">
+                    <input type="range" id="alpha" min="0.01" max="0.5" step="0.01" value="0.01">
+                </div>
+            </div>
+            
+            <div class="formula" id="formula">
+                g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = 0.5 × x<sub>1</sub> + 0
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化
+        let currentFunctionType = 'linear';
+        
+        // 图表初始化 - 一元函数
+        const ctx = document.getElementById('functionChart').getContext('2d');
+        let functionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: '函数图像',
+                    borderColor: '#3498db',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.1,
+                    showLine: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'center',
+                        min: -2,
+                        max: 2,
+                        grid: {
+                            color: '#ddd'
+                        },
+                        title: {
+                            display: true,
+                            text: 'x'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'center',
+                        min: -10,
+                        max: 10,
+                        grid: {
+                            color: '#ddd'
+                        },
+                        title: {
+                            display: true,
+                            text: 'f(x)'
+                        }
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0.1
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `f(${context.parsed.x.toFixed(2)}) = ${context.parsed.y.toFixed(4)}`;
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // 更新一元函数图表
+        function updateChart() {
+            const w1 = parseFloat(document.getElementById('w1').value);
+            const b = parseFloat(document.getElementById('b').value);
+            let alpha = 0.01;
+            
+            if (document.querySelector('.alpha-param:not(.hidden)')) {
+                alpha = parseFloat(document.getElementById('alpha').value);
+            }
+            
+            // 更新公式显示
+            updateFormula(w1, b, alpha);
+            
+            // 生成数据点
+            const points = [];
+            for (let x = -2; x <= 2; x += 0.05) {
+                let y;
+                if (currentFunctionType === 'linear') {
+                    y = w1 * x + b;
+                } else if (currentFunctionType === 'sigmoid') {
+                    y = 1 / (1 + Math.exp(-(w1 * x + b)));
+                } else if (currentFunctionType === 'relu') {
+                    y = Math.max(0, w1 * x + b);
+                } else if (currentFunctionType === 'tanh') {
+                    y = Math.tanh(w1 * x + b);
+                } else if (currentFunctionType === 'relu6') {
+                    y = Math.min(Math.max(0, w1 * x + b), 6);
+                } else if (currentFunctionType === 'leakyrelu') {
+                    y = (w1 * x + b) > 0 ? (w1 * x + b) : alpha * (w1 * x + b);
+                } else if (currentFunctionType === 'elu') {
+                    y = (w1 * x + b) > 0 ? (w1 * x + b) : alpha * (Math.exp(w1 * x + b) - 1);
+                } else if (currentFunctionType === 'softplus') {
+                    y = Math.log(1 + Math.exp(w1 * x + b));
+                } else if (currentFunctionType === 'softmax') {
+                    // 简化的二分类softmax
+                    const expX = Math.exp(w1 * x + b);
+                    y = expX / (expX + 1);  // exp(0) = 1
+                }
+                points.push({x, y});
+            }
+            
+            // 动态调整y轴范围
+            let minY = Math.min(...points.map(p => p.y));
+            let maxY = Math.max(...points.map(p => p.y));
+            
+            // 增加一些边距
+            let buffer = Math.max(1, (maxY - minY) * 0.2);
+            
+            // 为激活函数设定合理的范围
+            if (currentFunctionType === 'sigmoid' || currentFunctionType === 'softmax') {
+                minY = Math.min(minY, 0);
+                maxY = Math.max(maxY, 1);
+            } else if (currentFunctionType === 'tanh') {
+                minY = Math.min(minY, -1);
+                maxY = Math.max(maxY, 1);
+            } else if (currentFunctionType === 'relu6') {
+                minY = Math.min(minY, 0);
+                maxY = Math.max(maxY, 6);
+            } else {
+                minY = Math.min(minY, -10);
+                maxY = Math.max(maxY, 10);
+            }
+            
+            // 更新图表y轴范围
+            functionChart.options.scales.y.min = minY - buffer;
+            functionChart.options.scales.y.max = maxY + buffer;
+            
+            functionChart.data.datasets[0].data = points;
+            functionChart.update('none');
+            
+            // 通知父窗口函数类型已更改
+            window.parent.postMessage({
+                type: 'functionChanged',
+                dimension: '1d',
+                functionType: currentFunctionType
+            }, '*');
+        }
+        
+        // 更新一元函数公式显示
+        function updateFormula(w1, b, alpha = 0.01) {
+            let formula;
+            if (currentFunctionType === 'linear') {
+                formula = `g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = ${w1} × x<sub>1</sub> + ${b}`;
+            } else if (currentFunctionType === 'sigmoid') {
+                formula = `h(g(x<sub>1</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + b) = 1/(1+e<sup>-(${w1} × x<sub>1</sub> + ${b})</sup>)`;
+            } else if (currentFunctionType === 'tanh') {
+                formula = `h(g(x<sub>1</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${b})`;
+            } else if (currentFunctionType === 'relu') {
+                formula = `h(g(x<sub>1</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${b})`;
+            } else if (currentFunctionType === 'relu6') {
+                formula = `h(g(x<sub>1</sub>)) = ReLU6(w<sub>1</sub>x<sub>1</sub> + b) = min(max(0, ${w1} × x<sub>1</sub> + ${b}), 6)`;
+            } else if (currentFunctionType === 'leakyrelu') {
+                formula = `h(g(x<sub>1</sub>)) = LeakyReLU(w<sub>1</sub>x<sub>1</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${b} : ${alpha} × (${w1} × x<sub>1</sub> + ${b})`;
+            } else if (currentFunctionType === 'elu') {
+                formula = `h(g(x<sub>1</sub>)) = ELU(w<sub>1</sub>x<sub>1</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${b} : ${alpha} × (e<sup>${w1} × x<sub>1</sub> + ${b}</sup> - 1)`;
+            } else if (currentFunctionType === 'softplus') {
+                formula = `h(g(x<sub>1</sub>)) = Softplus(w<sub>1</sub>x<sub>1</sub> + b) = log(1 + e<sup>${w1} × x<sub>1</sub> + ${b}</sup>)`;
+            } else if (currentFunctionType === 'softmax') {
+                formula = `h(g(x<sub>1</sub>)) = Softmax(w<sub>1</sub>x<sub>1</sub> + b) = e<sup>${w1} × x<sub>1</sub> + ${b}</sup> / (e<sup>${w1} × x<sub>1</sub> + ${b}</sup> + e<sup>0</sup>)`;
+            }
+            document.getElementById('formula').innerHTML = formula;
+        }
+        
+        // 为一元函数图添加保存图像功能
+        function saveChart() {
+            const canvas = document.getElementById('functionChart');
+            const imgURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${currentFunctionType}_function.png`;
+            link.href = imgURL;
+            link.click();
+        }
+        
+        // 添加一元函数事件监听器
+        document.getElementById('w1').addEventListener('input', function() {
+            document.getElementById('w1Value').textContent = this.value;
+            updateChart();
+        });
+        
+        document.getElementById('b').addEventListener('input', function() {
+            document.getElementById('bValue').textContent = this.value;
+            updateChart();
+        });
+        
+        document.getElementById('alpha').addEventListener('input', function() {
+            document.getElementById('alphaValue').textContent = this.value;
+            updateChart();
+        });
+        
+        // 一元函数类型切换
+        document.querySelectorAll('.function-type button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.function-type button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentFunctionType = this.dataset.type;
+                
+                // 显示/隐藏alpha参数
+                if (currentFunctionType === 'leakyrelu' || currentFunctionType === 'elu') {
+                    document.querySelector('.alpha-param').classList.remove('hidden');
+                } else {
+                    document.querySelector('.alpha-param').classList.add('hidden');
+                }
+                
+                updateChart();
+            });
+        });
+        
+        // 接收来自父窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'requestCurrentFunction') {
+                window.parent.postMessage({
+                    type: 'functionChanged',
+                    dimension: '1d',
+                    functionType: currentFunctionType
+                }, '*');
+            }
+        });
+        
+        // 确保DOM元素加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化图表
+            updateChart();
+            
+            // 为一元函数图表添加保存按钮
+            const chartContainer = document.querySelector('.chart-container');
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'save-image-btn';
+            saveBtn.textContent = '保存图片';
+            saveBtn.onclick = saveChart;
+            chartContainer.appendChild(saveBtn);
+            
+            // 创建一个canvas 2D上下文对象并设置willReadFrequently属性为true
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                canvas.getContext('2d', { willReadFrequently: true });
+            });
+        });
+    </script>
+</body>
+</html> 
