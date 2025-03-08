@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卷积神经网络可视化</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .header {
+            background-color: #1e3a4c;
+            color: white;
+            padding: 15px;
+            position: relative;
+        }
+        .back-button {
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .dropdown-menu {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 30%;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .menu-item {
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .menu-item.active {
+            font-weight: bold;
+        }
+        .check-icon {
+            margin-right: 15px;
+            color: #1e3a4c;
+        }
+        .main-content {
+            display: flex;
+            margin-top: 20px;
+        }
+        .visualization {
+            flex: 3;
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .visualization-canvas {
+            width: 100%;
+            height: 300px;
+            background-color: #f9f9f9;
+            position: relative;
+        }
+        .formula {
+            flex: 2;
+            padding: 15px;
+            margin-left: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .control-button {
+            background-color: #1e3a4c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            margin: 0 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 100%;
+            width: 0%;
+            background-color: #1e3a4c;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+        .parameters {
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .parameter-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .parameter-label {
+            flex: 1;
+            color: #888;
+        }
+        .parameter-slider {
+            flex: 3;
+            margin: 0 10px;
+        }
+        .parameter-value {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1e3a4c;
+            cursor: pointer;
+        }
+        .node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+        .connection {
+            position: absolute;
+            background-color: transparent;
+            transform-origin: 0 0;
+            z-index: 0;
+            display: none; /* 初始隐藏所有线条 */
+        }
+        .connection::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: transparent;
+            border-bottom: 2px dashed #333;
+            border-radius: 50%;
+            transform: rotate(2deg); /* 添加轻微弯曲效果 */
+        }
+        .connection .data-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ff5722;
+            border-radius: 50%;
+            top: 0px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .active-connection {
+            display: block !important; /* 显示激活的连接线 */
+        }
+        .active-connection::after {
+            border-bottom: 2px solid #ff5722;
+            z-index: 2;
+        }
+        .output-connection {
+            display: block !important; /* 显示输出连接线 */
+        }
+        .output-connection::after {
+            border-bottom: 2px solid #4caf50;
+            z-index: 2;
+        }
+        .output-connection .data-point {
+            background-color: #4caf50;
+        }
+        .kernel-visualization {
+            position: absolute;
+            border: 2px solid #ff5722;
+            background-color: rgba(255, 87, 34, 0.1);
+            z-index: 1;
+            pointer-events: none;
+            transition: all 0.5s;
+        }
+        .calculation-bubble {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 5px 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 2;
+        }
+        .node.input {
+            background-color: #f0f0f0;
+        }
+        .node.hidden {
+            background-color: #f0f0f0;
+        }
+        .node.output {
+            background-color: #a6cde7;
+        }
+        .node.result-node {
+            background-color: white;
+        }
+        .selected-area {
+            position: absolute;
+            background-color: rgba(200, 200, 200, 0.5);
+            border: 1px dashed #666;
+        }
+        .plus-minus-btn {
+            width: 30px;
+            height: 30px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .node.active {
+            box-shadow: 0 0 10px #ff5722;
+            border-color: #ff5722;
+        }
+        .node.processing {
+            background-color: #ffe0d6;
+        }
+        .node.result {
+            background-color: #d6ffe0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="#" class="back-button">&#x2190;</a>
+        <h1 style="text-align: center;">Conv1d</h1>
+    </div>
+
+    <div class="dropdown-menu" style="display: none;">
+        <div class="menu-item" data-type="conv1d">
+            <span class="check-icon">&#10003;</span>
+            Conv1d
+        </div>
+        <div class="menu-item active" data-type="conv2d">
+            <span class="check-icon">&#10003;</span>
+            Conv2d
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <div class="visualization">
+                <div class="visualization-canvas" id="networkCanvas">
+                    <!-- 输入层节点 -->
+                    <div class="selected-area" style="left: 10%; top: 10%; width: 30%; height: 80%;"></div>
+                    
+                    <div class="node input" style="left: 10%; top: 10%;" data-value="0.2">
+                        <div class="node-content">0.2</div>
+                    </div>
+                    <div class="node input" style="left: 20%; top: 10%;" data-value="0.5">
+                        <div class="node-content">0.5</div>
+                    </div>
+                    <div class="node input" style="left: 30%; top: 10%;" data-value="0.1">
+                        <div class="node-content">0.1</div>
+                    </div>
+                    
+                    <div class="node input" style="left: 10%; top: 35%;" data-value="0.8">
+                        <div class="node-content">0.8</div>
+                    </div>
+                    <div class="node input" style="left: 20%; top: 35%;" data-value="0.4">
+                        <div class="node-content">0.4</div>
+                    </div>
+                    <div class="node input" style="left: 30%; top: 35%;" data-value="0.3">
+                        <div class="node-content">0.3</div>
+                    </div>
+                    
+                    <div class="node input" style="left: 10%; top: 60%;" data-value="0.7">
+                        <div class="node-content">0.7</div>
+                    </div>
+                    <div class="node input" style="left: 20%; top: 60%;" data-value="0.6">
+                        <div class="node-content">0.6</div>
+                    </div>
+                    <div class="node input" style="left: 30%; top: 60%;" data-value="0.9">
+                        <div class="node-content">0.9</div>
+                    </div>
+                    
+                    <!-- 输出节点 -->
+                    <div class="node output" style="left: 50%; top: 45%;" data-value="0">
+                        <div class="node-content">f<sub>2</sub></div>
+                    </div>
+                    
+                    <!-- 结果节点 -->
+                    <div class="node result-node" style="left: 70%; top: 30%;" data-value="0">
+                        <div class="node-content"></div>
+                    </div>
+                    <div class="node result-node" style="left: 70%; top: 60%;" data-value="0">
+                        <div class="node-content"></div>
+                    </div>
+                    
+                    <div class="node result-node" style="left: 85%; top: 30%;" data-value="0">
+                        <div class="node-content"></div>
+                    </div>
+                    <div class="node result-node" style="left: 85%; top: 60%;" data-value="0">
+                        <div class="node-content"></div>
+                    </div>
+                    
+                    <!-- 卷积核可视化 -->
+                    <div class="kernel-visualization" style="display: none;"></div>
+                    
+                    <!-- 计算气泡 -->
+                    <div class="calculation-bubble" style="display: none;"></div>
+                    
+                    <!-- 连接线将在JS中动态生成 -->
+                </div>
+            </div>
+            <div class="formula">
+                <div style="margin-bottom: 30px;">
+                    \(f_i = \text{conv}(z_{i,1}, ..., z_{i,8})\)
+                </div>
+                <div style="margin-bottom: 40px;">
+                    \(= \sigma(\sum_{j=1}^{8} w_{i,j}z_{i,j} + b_i)\)
+                </div>
+                
+                <div class="parameter-row">
+                    <div class="parameter-label">In Channels: 2</div>
+                    <div class="parameter-slider">
+                        <input type="range" min="1" max="8" value="2" class="slider" id="inChannelsSlider">
+                    </div>
+                    <div class="parameter-value">
+                        <div class="plus-minus-btn" id="inChannelsMinus">-</div>
+                        <div class="plus-minus-btn" id="inChannelsPlus">+</div>
+                    </div>
+                </div>
+                
+                <div class="parameter-row">
+                    <div class="parameter-label">Out Channels: 2</div>
+                    <div class="parameter-slider">
+                        <input type="range" min="1" max="8" value="2" class="slider" id="outChannelsSlider">
+                    </div>
+                    <div class="parameter-value">
+                        <div class="plus-minus-btn" id="outChannelsMinus">-</div>
+                        <div class="plus-minus-btn" id="outChannelsPlus">+</div>
+                    </div>
+                </div>
+                
+                <div class="parameter-row">
+                    <div class="parameter-label">Kernel Size: 2</div>
+                    <div class="parameter-slider">
+                        <input type="range" min="1" max="5" value="2" class="slider" id="kernelSizeSlider">
+                    </div>
+                    <div class="parameter-value">
+                        <div class="plus-minus-btn" id="kernelSizeMinus">-</div>
+                        <div class="plus-minus-btn" id="kernelSizePlus">+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-button" id="resetBtn">↺</button>
+            <button class="control-button" id="playBtn">▶</button>
+            <button class="control-button" id="nextBtn">⏭</button>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 标题点击显示下拉菜单
+            const header = document.querySelector('.header h1');
+            const menu = document.querySelector('.dropdown-menu');
+            
+            header.addEventListener('click', function() {
+                menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            // 菜单项选择
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    menuItems.forEach(mi => mi.classList.remove('active'));
+                    this.classList.add('active');
+                    header.textContent = this.textContent.trim();
+                    menu.style.display = 'none';
+                    
+                    // 更新可视化
+                    updateVisualization();
+                });
+            });
+            
+            // 参数滑块
+            const inChannelsSlider = document.getElementById('inChannelsSlider');
+            const outChannelsSlider = document.getElementById('outChannelsSlider');
+            const kernelSizeSlider = document.getElementById('kernelSizeSlider');
+            
+            inChannelsSlider.addEventListener('input', function() {
+                document.querySelector('.parameter-label:nth-child(1)').textContent = 'In Channels: ' + this.value;
+                updateVisualization();
+            });
+            
+            outChannelsSlider.addEventListener('input', function() {
+                document.querySelector('.parameter-label:nth-child(1)').textContent = 'Out Channels: ' + this.value;
+                updateVisualization();
+            });
+            
+            kernelSizeSlider.addEventListener('input', function() {
+                document.querySelector('.parameter-label:nth-child(1)').textContent = 'Kernel Size: ' + this.value;
+                updateVisualization();
+            });
+            
+            // 按钮控制
+            const plusMinus = document.querySelectorAll('.plus-minus-btn');
+            plusMinus.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.id;
+                    const slider = document.getElementById(id.replace('Plus', 'Slider').replace('Minus', 'Slider'));
+                    
+                    if (id.includes('Plus')) {
+                        if (parseInt(slider.value) < parseInt(slider.max)) {
+                            slider.value = parseInt(slider.value) + 1;
+                        }
+                    } else {
+                        if (parseInt(slider.value) > parseInt(slider.min)) {
+                            slider.value = parseInt(slider.value) - 1;
+                        }
+                    }
+                    
+                    // 触发input事件以更新显示
+                    const event = new Event('input');
+                    slider.dispatchEvent(event);
+                });
+            });
+            
+            // 播放控制
+            let isPlaying = false;
+            let progress = 0;
+            let animationInterval;
+            
+            const playBtn = document.getElementById('playBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const progressBar = document.getElementById('progress');
+            
+            playBtn.addEventListener('click', function() {
+                if (isPlaying) {
+                    isPlaying = false;
+                    playBtn.innerHTML = '▶';
+                    clearInterval(animationInterval);
+                } else {
+                    isPlaying = true;
+                    playBtn.innerHTML = '⏸';
+                    
+                    animationInterval = setInterval(function() {
+                        progress += 1;
+                        if (progress > 100) {
+                            progress = 0;
+                            clearInterval(animationInterval);
+                            isPlaying = false;
+                            playBtn.innerHTML = '▶';
+                        }
+                        progressBar.style.width = progress + '%';
+                        updateAnimation(progress);
+                    }, 100);
+                }
+            });
+            
+            resetBtn.addEventListener('click', function() {
+                progress = 0;
+                progressBar.style.width = '0%';
+                isPlaying = false;
+                playBtn.innerHTML = '▶';
+                clearInterval(animationInterval);
+                
+                // 检查是否完成过动画，如果是，则保留结果节点状态
+                if (!document.body.hasAttribute('data-animation-completed')) {
+                    // 如果没有完成过动画，则正常重置
+                    updateAnimation(0);
+                } else {
+                    // 如果已经完成过动画，仍然保留结果节点
+                    // 仅重置除结果节点外的其他元素
+                    const inputNodes = document.querySelectorAll('.node.input');
+                    const convNode = document.querySelector('.node.output[style*="left: 50%"]');
+                    const connections = document.querySelectorAll('.connection');
+                    const kernelVisualization = document.querySelector('.kernel-visualization');
+                    const calculationBubble = document.querySelector('.calculation-bubble');
+                    
+                    inputNodes.forEach(node => {
+                        node.classList.remove('active', 'processing');
+                    });
+                    convNode.classList.remove('active', 'processing', 'result');
+                    
+                    connections.forEach(conn => {
+                        conn.classList.remove('active-connection', 'output-connection');
+                        conn.style.display = 'none';
+                        conn.querySelectorAll('.data-point').forEach(point => point.style.opacity = '0');
+                    });
+                    
+                    kernelVisualization.style.display = 'none';
+                    calculationBubble.style.display = 'none';
+                    
+                    // 调用updateAnimation但保留结果节点
+                    updateAnimation(0);
+                }
+            });
+            
+            nextBtn.addEventListener('click', function() {
+                progress += 10;
+                if (progress > 100) progress = 100;
+                progressBar.style.width = progress + '%';
+                updateAnimation(progress);
+            });
+            
+            // 卷积参数
+            const convWeights = [
+                [0.1, 0.2],
+                [0.3, 0.4]
+            ];
+            const convBias = 0.1;
+            
+            // 卷积结果 - 为每个结果节点预设不同的值
+            const convResults = [0.82, 0.75, 0.68, 0.59];
+            
+            // 定义卷积步骤
+            const convSteps = [
+                { // 步骤1: 左上角卷积
+                    kernelLeft: '10%',
+                    kernelTop: '10%',
+                    activeInputs: [
+                        {left: '10%', top: '10%'},
+                        {left: '20%', top: '10%'},
+                        {left: '10%', top: '35%'},
+                        {left: '20%', top: '35%'}
+                    ],
+                    calculation: '0.2*0.1 + 0.5*0.2 + 0.8*0.3 + 0.4*0.4 = 0.47',
+                    resultIndex: 0, // 左上角结果节点 (70%, 30%)
+                    bubbleLeft: '15%',
+                    bubbleTop: '5%'
+                },
+                { // 步骤2: 右上角卷积
+                    kernelLeft: '20%',
+                    kernelTop: '10%',
+                    activeInputs: [
+                        {left: '20%', top: '10%'},
+                        {left: '30%', top: '10%'},
+                        {left: '20%', top: '35%'},
+                        {left: '30%', top: '35%'}
+                    ],
+                    calculation: '0.5*0.1 + 0.1*0.2 + 0.4*0.3 + 0.3*0.4 = 0.27',
+                    resultIndex: 2, // 修正为右上角结果节点 (85%, 30%)
+                    bubbleLeft: '25%',
+                    bubbleTop: '5%'
+                },
+                { // 步骤3: 左下角卷积
+                    kernelLeft: '10%',
+                    kernelTop: '35%',
+                    activeInputs: [
+                        {left: '10%', top: '35%'},
+                        {left: '20%', top: '35%'},
+                        {left: '10%', top: '60%'},
+                        {left: '20%', top: '60%'}
+                    ],
+                    calculation: '0.8*0.1 + 0.4*0.2 + 0.7*0.3 + 0.6*0.4 = 0.59',
+                    resultIndex: 1, // 修正为左下角结果节点 (70%, 60%)
+                    bubbleLeft: '15%',
+                    bubbleTop: '30%'
+                },
+                { // 步骤4: 右下角卷积
+                    kernelLeft: '20%',
+                    kernelTop: '35%',
+                    activeInputs: [
+                        {left: '20%', top: '35%'},
+                        {left: '30%', top: '35%'},
+                        {left: '20%', top: '60%'},
+                        {left: '30%', top: '60%'}
+                    ],
+                    calculation: '0.4*0.1 + 0.3*0.2 + 0.6*0.3 + 0.9*0.4 = 0.58',
+                    resultIndex: 3, // 右下角结果节点 (85%, 60%)
+                    bubbleLeft: '25%',
+                    bubbleTop: '30%'
+                }
+            ];
+            
+            // 更新动画
+            function updateAnimation(progress) {
+                // 获取节点和连接
+                const inputNodes = document.querySelectorAll('.node.input');
+                const convNode = document.querySelector('.node.output[style*="left: 50%"]');
+                const resultNodes = document.querySelectorAll('.node.result-node');
+                const connections = document.querySelectorAll('.connection');
+                const kernelVisualization = document.querySelector('.kernel-visualization');
+                const calculationBubble = document.querySelector('.calculation-bubble');
+                
+                // 确定当前步骤
+                const totalSteps = convSteps.length;
+                const stepSize = 100 / totalSteps;
+                const currentStepIndex = Math.min(totalSteps - 1, Math.floor(progress / stepSize));
+                const stepProgress = (progress % stepSize) / stepSize; // 0-1表示当前步骤的进度
+                
+                const currentStep = convSteps[currentStepIndex];
+                
+                // 标记是否已经完成过动画
+                const hasCompletedBefore = document.body.hasAttribute('data-animation-completed');
+                
+                // 重置所有节点和线条
+                if (progress >= 99.9) {
+                    // 动画即将结束时，隐藏所有线条但保留结果节点
+                    document.body.setAttribute('data-animation-completed', 'true');
+                    
+                    inputNodes.forEach(node => {
+                        node.classList.remove('active', 'processing');
+                    });
+                    convNode.classList.remove('active', 'processing', 'result');
+                    
+                    // 保留所有结果节点的值和样式
+                    resultNodes.forEach((node, index) => {
+                        node.classList.add('active', 'result');
+                        node.style.backgroundColor = '#d6ffe0';
+                        node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                    });
+                    
+                    // 隐藏所有连接线
+                    connections.forEach(conn => {
+                        conn.classList.remove('active-connection', 'output-connection');
+                        conn.style.display = 'none';
+                        conn.querySelectorAll('.data-point').forEach(point => point.style.opacity = '0');
+                    });
+                    
+                    // 隐藏卷积核和计算气泡
+                    kernelVisualization.style.display = 'none';
+                    calculationBubble.style.display = 'none';
+                    
+                    return; // 结束函数执行
+                }
+                
+                // 如果之前已经完成过动画且现在是重置状态，保留所有结果节点
+                if (hasCompletedBefore && progress === 0) {
+                    // 显示所有已计算的结果节点
+                    resultNodes.forEach((node, index) => {
+                        node.classList.add('active', 'result');
+                        node.style.backgroundColor = '#d6ffe0';
+                        node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                    });
+                }
+                
+                // 重置节点状态
+                inputNodes.forEach(node => {
+                    node.classList.remove('active', 'processing');
+                });
+                convNode.classList.remove('active', 'processing', 'result');
+                
+                // 处理结果节点 - 如果之前完成过动画，则不重置结果节点
+                if (!hasCompletedBefore) {
+                    resultNodes.forEach((node, index) => {
+                        if (progress === 0) {
+                            // 在动画开始前且未完成过动画时，重置所有结果节点
+                            node.classList.remove('active', 'processing', 'result');
+                            node.style.backgroundColor = 'white';
+                            node.querySelector('.node-content').textContent = '';
+                        } else if (index < currentStepIndex) {
+                            // 保留先前步骤的结果节点样式和值
+                            node.classList.add('active', 'result');
+                            node.style.backgroundColor = '#d6ffe0'; // 有值后变为绿色
+                            node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                        } else if (index > currentStepIndex) {
+                            // 重置后面步骤的结果节点
+                            node.classList.remove('active', 'processing', 'result');
+                            node.style.backgroundColor = 'white';
+                            node.querySelector('.node-content').textContent = '';
+                        }
+                        // 当前步骤的结果节点会在下面处理
+                    });
+                }
+                
+                // 首先隐藏所有连接线
+                connections.forEach(conn => {
+                    conn.classList.remove('active-connection', 'output-connection');
+                    conn.style.display = 'none';
+                    conn.querySelectorAll('.data-point').forEach(point => point.style.opacity = '0');
+                });
+                
+                // 确保在任何阶段，计算气泡都是可见的
+                calculationBubble.style.display = 'block';
+                calculationBubble.style.opacity = '1';
+                
+                // 第一阶段(0-30%): 显示卷积核和输入区域
+                if (stepProgress < 0.3) {
+                    // 显示卷积核
+                    kernelVisualization.style.display = 'block';
+                    kernelVisualization.style.width = '120px';
+                    kernelVisualization.style.height = '120px';
+                    kernelVisualization.style.left = currentStep.kernelLeft;
+                    kernelVisualization.style.top = currentStep.kernelTop;
+                    
+                    // 显示卷积核权重
+                    calculationBubble.style.left = currentStep.bubbleLeft;
+                    calculationBubble.style.top = currentStep.bubbleTop;
+                    calculationBubble.textContent = 'Kernel: [[0.1, 0.2], [0.3, 0.4]]';
+                    
+                    // 高亮相关输入节点
+                    currentStep.activeInputs.forEach(pos => {
+                        const node = document.querySelector(`.node.input[style*="left: ${pos.left}"][style*="top: ${pos.top}"]`);
+                        if (node) node.classList.add('active');
+                    });
+                }
+                // 第二阶段(30-60%): 显示计算过程和输入线条
+                else if (stepProgress < 0.6) {
+                    // 保持卷积核显示
+                    kernelVisualization.style.display = 'block';
+                    kernelVisualization.style.left = currentStep.kernelLeft;
+                    kernelVisualization.style.top = currentStep.kernelTop;
+                    
+                    // 高亮相关输入节点和显示输入线条
+                    currentStep.activeInputs.forEach(pos => {
+                        const node = document.querySelector(`.node.input[style*="left: ${pos.left}"][style*="top: ${pos.top}"]`);
+                        if (node) {
+                            node.classList.add('active');
+                            
+                            // 高亮从此节点到卷积节点的连接线
+                            connections.forEach(conn => {
+                                if (conn.dataset.startNode === (pos.left + '-' + pos.top) &&
+                                    conn.dataset.endNode.includes('50%')) {
+                                    conn.classList.add('active-connection');
+                                }
+                            });
+                        }
+                    });
+                    
+                    // 显示计算过程
+                    calculationBubble.textContent = 'Computing: ' + currentStep.calculation;
+                    calculationBubble.style.left = currentStep.bubbleLeft;
+                    calculationBubble.style.top = currentStep.bubbleTop;
+                    
+                    // 激活卷积节点
+                    convNode.classList.add('active', 'processing');
+                }
+                // 第三阶段(60-100%): 输入线条保持显示，并添加结果线条
+                else {
+                    // 隐藏卷积核
+                    kernelVisualization.style.display = 'none';
+                    
+                    // 高亮卷积节点
+                    convNode.classList.add('active');
+                    
+                    // 高亮相关输入节点和保持显示输入线条
+                    currentStep.activeInputs.forEach(pos => {
+                        const node = document.querySelector(`.node.input[style*="left: ${pos.left}"][style*="top: ${pos.top}"]`);
+                        if (node) {
+                            node.classList.add('active');
+                            
+                            // 继续显示从此节点到卷积节点的连接线
+                            connections.forEach(conn => {
+                                if (conn.dataset.startNode === (pos.left + '-' + pos.top) &&
+                                    conn.dataset.endNode.includes('50%')) {
+                                    conn.classList.add('active-connection');
+                                }
+                            });
+                        }
+                    });
+                    
+                    // 获取当前步骤对应的结果节点
+                    const resultNode = resultNodes[currentStep.resultIndex];
+                    
+                    // 高亮结果节点并设置值
+                    resultNode.classList.add('active', 'result');
+                    resultNode.style.backgroundColor = '#d6ffe0'; // 有值后变为绿色
+                    resultNode.querySelector('.node-content').textContent = convResults[currentStep.resultIndex].toFixed(2);
+                    
+                    // 显示结果计算
+                    calculationBubble.textContent = `Result ${currentStep.resultIndex + 1}: ${convResults[currentStep.resultIndex].toFixed(2)}`;
+                    calculationBubble.style.left = '60%';
+                    calculationBubble.style.top = resultNode.style.top;
+                    
+                    // 找到并高亮从卷积节点到当前结果节点的连接线
+                    connections.forEach(conn => {
+                        // 检查连接是否连接到当前结果节点
+                        if (conn.dataset.endNode === (resultNode.style.left + '-' + resultNode.style.top) &&
+                            conn.dataset.startNode.includes('50%')) {
+                            conn.classList.add('output-connection');
+                            
+                            // 添加数据点动画
+                            const dataPoints = conn.querySelectorAll('.data-point');
+                            const animationProgress = (stepProgress - 0.6) * 2.5; // 0-1 for 60-100% step progress
+                            
+                            dataPoints.forEach((point, idx) => {
+                                const pointThreshold = idx * 0.33; // 分布阈值
+                                if (animationProgress > pointThreshold) {
+                                    point.style.opacity = '1';
+                                    const position = Math.min(100, (animationProgress - pointThreshold) * 150);
+                                    point.style.left = position + '%';
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            
+            // 更新可视化
+            function updateVisualization() {
+                // 根据参数更新节点和连接
+                const kernelSize = parseInt(document.getElementById('kernelSizeSlider').value);
+                const inChannels = parseInt(document.getElementById('inChannelsSlider').value);
+                const outChannels = parseInt(document.getElementById('outChannelsSlider').value);
+                
+                document.querySelector('.parameter-label:nth-of-type(1)').textContent = 'In Channels: ' + inChannels;
+                document.querySelector('.parameter-label:nth-of-type(2)').textContent = 'Out Channels: ' + outChannels;
+                document.querySelector('.parameter-label:nth-of-type(3)').textContent = 'Kernel Size: ' + kernelSize;
+                
+                // 更新公式中的参数
+                const formulaSum = document.querySelector('.formula div:nth-of-type(2)');
+                formulaSum.innerHTML = `\\(= \\sigma(\\sum_{j=1}^{${kernelSize*kernelSize}} w_{i,j}z_{i,j} + b_i)\\)`;
+                
+                // 更新MathJax渲染
+                if (window.MathJax) {
+                    MathJax.typeset();
+                }
+                
+                // 更新连接
+                createConnections();
+                
+                // 重置动画
+                resetBtn.click();
+            }
+            
+            // 初始化连接线
+            function createConnections() {
+                const canvas = document.getElementById('networkCanvas');
+                const inputNodes = document.querySelectorAll('.node.input');
+                const convNode = document.querySelector('.node.output[style*="left: 50%"]');
+                const resultNodes = document.querySelectorAll('.node.result-node');
+                
+                // 清除现有连接
+                const existingConnections = document.querySelectorAll('.connection');
+                existingConnections.forEach(conn => conn.remove());
+                
+                // 创建从输入节点到卷积函数节点的连接
+                inputNodes.forEach(inputNode => {
+                    const connection = document.createElement('div');
+                    connection.className = 'connection';
+                    connection.style.display = 'none'; // 初始隐藏
+                    
+                    const inputRect = inputNode.getBoundingClientRect();
+                    const convRect = convNode.getBoundingClientRect();
+                    
+                    const canvasRect = canvas.getBoundingClientRect();
+                    
+                    const startX = inputRect.left + inputRect.width/2 - canvasRect.left;
+                    const startY = inputRect.top + inputRect.height/2 - canvasRect.top;
+                    const endX = convRect.left + convRect.width/2 - canvasRect.left;
+                    const endY = convRect.top + convRect.height/2 - canvasRect.top;
+                    
+                    // 使用贝塞尔曲线控制点计算
+                    const controlX = (startX + endX) / 2;
+                    const controlY = startY - 20; // 向上弯曲
+                    
+                    // 设置曲线路径 (这里我们使用CSS transform代替，更简单)
+                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                    const angle = Math.atan2(endY - startY, endX - startX);
+                    
+                    connection.style.width = length + 'px';
+                    connection.style.left = startX + 'px';
+                    connection.style.top = startY + 'px';
+                    connection.style.transform = 'rotate(' + angle + 'rad)';
+                    
+                    // 添加数据点用于动画
+                    for (let i = 0; i < 3; i++) {
+                        const dataPoint = document.createElement('div');
+                        dataPoint.className = 'data-point';
+                        dataPoint.style.left = (i * 30) + '%';
+                        connection.appendChild(dataPoint);
+                    }
+                    
+                    // 存储连接的起点和终点节点
+                    connection.dataset.startNode = inputNode.style.left + '-' + inputNode.style.top;
+                    connection.dataset.endNode = convNode.style.left + '-' + convNode.style.top;
+                    
+                    canvas.appendChild(connection);
+                });
+                
+                // 创建从卷积函数节点到结果节点的连接
+                resultNodes.forEach(resultNode => {
+                    const connection = document.createElement('div');
+                    connection.className = 'connection';
+                    connection.style.display = 'none'; // 初始隐藏
+                    
+                    const convRect = convNode.getBoundingClientRect();
+                    const resultRect = resultNode.getBoundingClientRect();
+                    
+                    const canvasRect = canvas.getBoundingClientRect();
+                    
+                    const startX = convRect.left + convRect.width/2 - canvasRect.left;
+                    const startY = convRect.top + convRect.height/2 - canvasRect.top;
+                    const endX = resultRect.left + resultRect.width/2 - canvasRect.left;
+                    const endY = resultRect.top + resultRect.height/2 - canvasRect.top;
+                    
+                    // 使用贝塞尔曲线控制点计算
+                    const controlX = startX + (endX - startX) * 0.4;
+                    const controlY = startY - 30; // 向上弯曲
+                    
+                    // 设置路径 (使用CSS transform)
+                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                    const angle = Math.atan2(endY - startY, endX - startX);
+                    
+                    connection.style.width = length + 'px';
+                    connection.style.left = startX + 'px';
+                    connection.style.top = startY + 'px';
+                    connection.style.transform = 'rotate(' + angle + 'rad)';
+                    
+                    // 添加数据点用于动画
+                    for (let i = 0; i < 3; i++) {
+                        const dataPoint = document.createElement('div');
+                        dataPoint.className = 'data-point';
+                        dataPoint.style.left = (i * 30) + '%';
+                        connection.appendChild(dataPoint);
+                    }
+                    
+                    // 存储连接的起点和终点节点
+                    connection.dataset.startNode = convNode.style.left + '-' + convNode.style.top;
+                    connection.dataset.endNode = resultNode.style.left + '-' + resultNode.style.top;
+                    
+                    canvas.appendChild(connection);
+                });
+            }
+            
+            // 初始化
+            createConnections();
+            
+            // 窗口调整大小时重新计算连接
+            window.addEventListener('resize', createConnections);
+        });
+    </script>
+</body>
+</html> 
