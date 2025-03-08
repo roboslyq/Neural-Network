@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神经网络函数可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .function-type {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .function-type button {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .function-type button.active {
+            background-color: #4a89dc;
+            color: white;
+            border-color: #4a89dc;
+        }
+        .visualization {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .chart-container {
+            flex: 1;
+            min-width: 400px;
+            height: 400px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+        }
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .parameter {
+            margin-bottom: 20px;
+        }
+        .parameter label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        .parameter .value {
+            display: inline-block;
+            width: 40px;
+            text-align: center;
+            margin-left: 10px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4a89dc;
+            cursor: pointer;
+        }
+        .formula {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>一元线性函数可视化</h1>
+        
+        <div class="function-type">
+            <button class="active" data-type="linear">线性函数</button>
+            <button data-type="sigmoid">Sigmoid函数</button>
+            <button data-type="relu">ReLU函数</button>
+        </div>
+        
+        <div class="visualization">
+            <div class="chart-container">
+                <canvas id="functionChart"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="parameter">
+                    <label for="w1">w<sub>1</sub></label>
+                    <div class="slider-container">
+                        <input type="range" id="w1" min="-2" max="2" step="0.1" value="1">
+                        <span class="value" id="w1Value">1</span>
+                    </div>
+                </div>
+                
+                <div class="parameter">
+                    <label for="b">b</label>
+                    <div class="slider-container">
+                        <input type="range" id="b" min="-2" max="2" step="0.1" value="0">
+                        <span class="value" id="bValue">0</span>
+                    </div>
+                </div>
+                
+                <div class="formula" id="formula">
+                    g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = 1 × x<sub>1</sub> + 0
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 图表初始化
+        const ctx = document.getElementById('functionChart').getContext('2d');
+        let functionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'g(x)',
+                    borderColor: '#4a89dc',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'center',
+                        min: -2,
+                        max: 2,
+                        grid: {
+                            color: '#ddd'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'center',
+                        min: -2,
+                        max: 2,
+                        grid: {
+                            color: '#ddd'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 当前函数类型
+        let currentFunctionType = 'linear';
+
+        // 更新图表
+        function updateChart() {
+            const w1 = parseFloat(document.getElementById('w1').value);
+            const b = parseFloat(document.getElementById('b').value);
+            
+            // 更新公式显示
+            updateFormula(w1, b);
+            
+            // 生成数据点
+            const points = [];
+            for (let x = -2; x <= 2; x += 0.05) {
+                let y;
+                if (currentFunctionType === 'linear') {
+                    y = w1 * x + b;
+                } else if (currentFunctionType === 'sigmoid') {
+                    y = 1 / (1 + Math.exp(-(w1 * x + b)));
+                } else if (currentFunctionType === 'relu') {
+                    y = Math.max(0, w1 * x + b);
+                }
+                points.push({x, y});
+            }
+            
+            functionChart.data.datasets[0].data = points;
+            functionChart.update();
+        }
+        
+        // 更新公式显示
+        function updateFormula(w1, b) {
+            let formula;
+            if (currentFunctionType === 'linear') {
+                formula = `g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = ${w1} × x<sub>1</sub> + ${b}`;
+            } else if (currentFunctionType === 'sigmoid') {
+                formula = `h(g(x<sub>1</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + b) = sigmoid(${w1} × x<sub>1</sub> + ${b})`;
+            } else if (currentFunctionType === 'relu') {
+                formula = `h(g(x<sub>1</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${b})`;
+            }
+            document.getElementById('formula').innerHTML = formula;
+        }
+        
+        // 初始化图表
+        updateChart();
+        
+        // 添加事件监听器
+        document.getElementById('w1').addEventListener('input', function() {
+            document.getElementById('w1Value').textContent = this.value;
+            updateChart();
+        });
+        
+        document.getElementById('b').addEventListener('input', function() {
+            document.getElementById('bValue').textContent = this.value;
+            updateChart();
+        });
+        
+        // 函数类型切换
+        document.querySelectorAll('.function-type button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.function-type button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentFunctionType = this.dataset.type;
+                
+                // 更新标题
+                if (currentFunctionType === 'linear') {
+                    document.querySelector('h1').textContent = '一元线性函数可视化';
+                } else if (currentFunctionType === 'sigmoid') {
+                    document.querySelector('h1').textContent = 'Sigmoid函数可视化';
+                } else if (currentFunctionType === 'relu') {
+                    document.querySelector('h1').textContent = 'ReLU函数可视化';
+                }
+                
+                updateChart();
+            });
+        });
+    </script>
+</body>
+</html> 
