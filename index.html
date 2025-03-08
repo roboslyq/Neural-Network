@@ -280,6 +280,24 @@
         .node.result {
             background-color: #d6ffe0;
         }
+        /* 添加f2结果节点的样式 */
+        .node.result-node-f2 {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            background-color: white;
+            z-index: 1;
+        }
+        
+        .node.result-node-f2.result {
+            background-color: #e8f5e9;
+        }
     </style>
 </head>
 <body>
@@ -289,11 +307,11 @@
     </div>
 
     <div class="dropdown-menu" style="display: none;">
-        <div class="menu-item" data-type="conv1d">
+        <div class="menu-item active" data-type="conv1d">
             <span class="check-icon">&#10003;</span>
             Conv1d
         </div>
-        <div class="menu-item active" data-type="conv2d">
+        <div class="menu-item" data-type="conv2d">
             <span class="check-icon">&#10003;</span>
             Conv2d
         </div>
@@ -337,11 +355,16 @@
                     </div>
                     
                     <!-- 输出节点 -->
-                    <div class="node output" style="left: 50%; top: 45%;" data-value="0">
+                    <div class="node output" style="left: 50%; top: 35%;" data-value="0">
+                        <div class="node-content">f<sub>1</sub></div>
+                    </div>
+                    
+                    <!-- 添加第二个卷积函数节点(初始隐藏) -->
+                    <div class="node output" style="left: 50%; top: 75%; display: none;" data-value="0" id="f2Node">
                         <div class="node-content">f<sub>2</sub></div>
                     </div>
                     
-                    <!-- 结果节点 -->
+                    <!-- 结果节点 - f1 -->
                     <div class="node result-node" style="left: 70%; top: 30%;" data-value="0">
                         <div class="node-content"></div>
                     </div>
@@ -353,6 +376,20 @@
                         <div class="node-content"></div>
                     </div>
                     <div class="node result-node" style="left: 85%; top: 60%;" data-value="0">
+                        <div class="node-content"></div>
+                    </div>
+                    
+                    <!-- 结果节点 - f2 (初始隐藏) -->
+                    <div class="node result-node-f2" style="left: 73%; top: 33%; display: none;" data-value="0" id="f2Result0">
+                        <div class="node-content"></div>
+                    </div>
+                    <div class="node result-node-f2" style="left: 73%; top: 63%; display: none;" data-value="0" id="f2Result1">
+                        <div class="node-content"></div>
+                    </div>
+                    <div class="node result-node-f2" style="left: 88%; top: 33%; display: none;" data-value="0" id="f2Result2">
+                        <div class="node-content"></div>
+                    </div>
+                    <div class="node result-node-f2" style="left: 88%; top: 63%; display: none;" data-value="0" id="f2Result3">
                         <div class="node-content"></div>
                     </div>
                     
@@ -421,6 +458,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 设置初始卷积模式
+            let convMode = 'conv1d'; // 默认使用Conv1d模式
+            let currentConvFunction = 'f1'; // 当前正在处理的卷积函数
+            
             // 标题点击显示下拉菜单
             const header = document.querySelector('.header h1');
             const menu = document.querySelector('.dropdown-menu');
@@ -433,12 +474,37 @@
             const menuItems = document.querySelectorAll('.menu-item');
             menuItems.forEach(item => {
                 item.addEventListener('click', function() {
+                    // 更新菜单项状态
                     menuItems.forEach(mi => mi.classList.remove('active'));
                     this.classList.add('active');
-                    header.textContent = this.textContent.trim();
+                    
+                    // 更新标题
+                    const selectedConvType = this.dataset.type;
+                    header.textContent = selectedConvType.charAt(0).toUpperCase() + selectedConvType.slice(1);
                     menu.style.display = 'none';
                     
-                    // 更新可视化
+                    // 更新卷积模式
+                    convMode = selectedConvType;
+                    currentConvFunction = 'f1'; // 重置为第一个卷积函数
+                    
+                    // 显示/隐藏第二个卷积函数节点，但f2结果节点保持隐藏直到输出
+                    const f2Node = document.getElementById('f2Node');
+                    const f2Results = document.querySelectorAll('.node.result-node-f2');
+                    
+                    if (convMode === 'conv2d') {
+                        f2Node.style.display = 'flex';
+                        // f2结果节点保持隐藏，直到输出时才显示
+                        f2Results.forEach(node => node.style.display = 'none');
+                    } else {
+                        f2Node.style.display = 'none';
+                        f2Results.forEach(node => node.style.display = 'none');
+                    }
+                    
+                    // 重置动画状态
+                    document.body.removeAttribute('data-animation-completed');
+                    document.body.removeAttribute('data-f1-completed');
+                    
+                    // 重新创建连接线和更新可视化
                     updateVisualization();
                 });
             });
@@ -507,12 +573,22 @@
                     
                     animationInterval = setInterval(function() {
                         progress += 1;
-                        if (progress > 100) {
+                        
+                        // 处理Conv2d模式下的两阶段动画
+                        if (convMode === 'conv2d' && progress > 100 && currentConvFunction === 'f1') {
+                            // 第一个卷积函数完成，切换到第二个
+                            progress = 0;
+                            currentConvFunction = 'f2';
+                            document.body.setAttribute('data-f1-completed', 'true');
+                        } else if (progress > 100) {
+                            // 全部完成
                             progress = 0;
                             clearInterval(animationInterval);
                             isPlaying = false;
                             playBtn.innerHTML = '▶';
+                            document.body.setAttribute('data-animation-completed', 'true');
                         }
+                        
                         progressBar.style.width = progress + '%';
                         updateAnimation(progress);
                     }, 100);
@@ -526,41 +602,55 @@
                 playBtn.innerHTML = '▶';
                 clearInterval(animationInterval);
                 
-                // 检查是否完成过动画，如果是，则保留结果节点状态
-                if (!document.body.hasAttribute('data-animation-completed')) {
-                    // 如果没有完成过动画，则正常重置
-                    updateAnimation(0);
-                } else {
-                    // 如果已经完成过动画，仍然保留结果节点
-                    // 仅重置除结果节点外的其他元素
-                    const inputNodes = document.querySelectorAll('.node.input');
-                    const convNode = document.querySelector('.node.output[style*="left: 50%"]');
-                    const connections = document.querySelectorAll('.connection');
-                    const kernelVisualization = document.querySelector('.kernel-visualization');
-                    const calculationBubble = document.querySelector('.calculation-bubble');
+                // 重置当前卷积函数
+                currentConvFunction = 'f1';
+                
+                // 移除完成标记
+                document.body.removeAttribute('data-f1-completed');
+                document.body.removeAttribute('data-animation-completed');
+                
+                // 重置动画状态
+                updateAnimation(0);
+                
+                // 如果是Conv2d模式且f1已完成，在重置时保留f1的连接线
+                if (convMode === 'conv2d' && document.body.hasAttribute('data-f1-completed') && currentConvFunction === 'f2') {
+                    // 保留f1的结果节点和连接线
+                    const f1Node = document.querySelector('.node.output[style*="left: 50%; top: 35%"]');
+                    const resultNodes = document.querySelectorAll('.node.result-node');
                     
-                    inputNodes.forEach(node => {
-                        node.classList.remove('active', 'processing');
+                    // 高亮f1节点
+                    f1Node.classList.add('active');
+                    
+                    // 高亮f1的结果节点
+                    resultNodes.forEach((node, index) => {
+                        node.classList.add('active', 'result');
+                        node.style.backgroundColor = '#fff0e6'; // 浅橙色背景
+                        node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
                     });
-                    convNode.classList.remove('active', 'processing', 'result');
                     
+                    // 显示f1到结果节点的连接线
                     connections.forEach(conn => {
-                        conn.classList.remove('active-connection', 'output-connection');
-                        conn.style.display = 'none';
-                        conn.querySelectorAll('.data-point').forEach(point => point.style.opacity = '0');
+                        if (conn.dataset.startNode === (f1Node.style.left + '-' + f1Node.style.top)) {
+                            conn.classList.add('output-connection');
+                            conn.style.display = 'block';
+                        }
                     });
-                    
-                    kernelVisualization.style.display = 'none';
-                    calculationBubble.style.display = 'none';
-                    
-                    // 调用updateAnimation但保留结果节点
-                    updateAnimation(0);
                 }
             });
             
             nextBtn.addEventListener('click', function() {
                 progress += 10;
-                if (progress > 100) progress = 100;
+                
+                // 处理Conv2d模式下的两阶段动画
+                if (convMode === 'conv2d' && progress > 100 && currentConvFunction === 'f1') {
+                    // 第一个卷积函数完成，切换到第二个
+                    progress = 0;
+                    currentConvFunction = 'f2';
+                    document.body.setAttribute('data-f1-completed', 'true');
+                } else if (progress > 100) {
+                    progress = 100;
+                }
+                
                 progressBar.style.width = progress + '%';
                 updateAnimation(progress);
             });
@@ -572,78 +662,137 @@
             ];
             const convBias = 0.1;
             
+            // 卷积核2的权重 (用于Conv2d模式)
+            const convWeights2 = [
+                [0.2, 0.3],
+                [0.1, 0.4]
+            ];
+            const convBias2 = 0.2;
+            
             // 卷积结果 - 为每个结果节点预设不同的值
             const convResults = [0.82, 0.75, 0.68, 0.59];
             
+            // 卷积核2的结果 (用于Conv2d模式)
+            const convResults2 = [0.71, 0.64, 0.93, 0.88];
+            
             // 定义卷积步骤
-            const convSteps = [
-                { // 步骤1: 左上角卷积
-                    kernelLeft: '10%',
-                    kernelTop: '10%',
-                    activeInputs: [
-                        {left: '10%', top: '10%'},
-                        {left: '20%', top: '10%'},
-                        {left: '10%', top: '35%'},
-                        {left: '20%', top: '35%'}
-                    ],
-                    calculation: '0.2*0.1 + 0.5*0.2 + 0.8*0.3 + 0.4*0.4 = 0.47',
-                    resultIndex: 0, // 左上角结果节点 (70%, 30%)
-                    bubbleLeft: '15%',
-                    bubbleTop: '5%'
-                },
-                { // 步骤2: 右上角卷积
-                    kernelLeft: '20%',
-                    kernelTop: '10%',
-                    activeInputs: [
-                        {left: '20%', top: '10%'},
-                        {left: '30%', top: '10%'},
-                        {left: '20%', top: '35%'},
-                        {left: '30%', top: '35%'}
-                    ],
-                    calculation: '0.5*0.1 + 0.1*0.2 + 0.4*0.3 + 0.3*0.4 = 0.27',
-                    resultIndex: 2, // 修正为右上角结果节点 (85%, 30%)
-                    bubbleLeft: '25%',
-                    bubbleTop: '5%'
-                },
-                { // 步骤3: 左下角卷积
-                    kernelLeft: '10%',
-                    kernelTop: '35%',
-                    activeInputs: [
-                        {left: '10%', top: '35%'},
-                        {left: '20%', top: '35%'},
-                        {left: '10%', top: '60%'},
-                        {left: '20%', top: '60%'}
-                    ],
-                    calculation: '0.8*0.1 + 0.4*0.2 + 0.7*0.3 + 0.6*0.4 = 0.59',
-                    resultIndex: 1, // 修正为左下角结果节点 (70%, 60%)
-                    bubbleLeft: '15%',
-                    bubbleTop: '30%'
-                },
-                { // 步骤4: 右下角卷积
-                    kernelLeft: '20%',
-                    kernelTop: '35%',
-                    activeInputs: [
-                        {left: '20%', top: '35%'},
-                        {left: '30%', top: '35%'},
-                        {left: '20%', top: '60%'},
-                        {left: '30%', top: '60%'}
-                    ],
-                    calculation: '0.4*0.1 + 0.3*0.2 + 0.6*0.3 + 0.9*0.4 = 0.58',
-                    resultIndex: 3, // 右下角结果节点 (85%, 60%)
-                    bubbleLeft: '25%',
-                    bubbleTop: '30%'
+            function getConvSteps() {
+                // 基础卷积步骤 (Conv1d使用)
+                const baseSteps = [
+                    { // 步骤1: 左上角卷积
+                        kernelLeft: '10%',
+                        kernelTop: '10%',
+                        activeInputs: [
+                            {left: '10%', top: '10%'},
+                            {left: '20%', top: '10%'},
+                            {left: '10%', top: '35%'},
+                            {left: '20%', top: '35%'}
+                        ],
+                        calculation: '0.2*0.1 + 0.5*0.2 + 0.8*0.3 + 0.4*0.4 = 0.47',
+                        resultIndex: 0, // 左上角结果节点 (70%, 30%)
+                        bubbleLeft: '15%',
+                        bubbleTop: '5%'
+                    },
+                    { // 步骤2: 右上角卷积
+                        kernelLeft: '20%',
+                        kernelTop: '10%',
+                        activeInputs: [
+                            {left: '20%', top: '10%'},
+                            {left: '30%', top: '10%'},
+                            {left: '20%', top: '35%'},
+                            {left: '30%', top: '35%'}
+                        ],
+                        calculation: '0.5*0.1 + 0.1*0.2 + 0.4*0.3 + 0.3*0.4 = 0.27',
+                        resultIndex: 2, // 右上角结果节点 (85%, 30%)
+                        bubbleLeft: '25%',
+                        bubbleTop: '5%'
+                    },
+                    { // 步骤3: 左下角卷积
+                        kernelLeft: '10%',
+                        kernelTop: '35%',
+                        activeInputs: [
+                            {left: '10%', top: '35%'},
+                            {left: '20%', top: '35%'},
+                            {left: '10%', top: '60%'},
+                            {left: '20%', top: '60%'}
+                        ],
+                        calculation: '0.8*0.1 + 0.4*0.2 + 0.7*0.3 + 0.6*0.4 = 0.59',
+                        resultIndex: 1, // 左下角结果节点 (70%, 60%)
+                        bubbleLeft: '15%',
+                        bubbleTop: '30%'
+                    },
+                    { // 步骤4: 右下角卷积
+                        kernelLeft: '20%',
+                        kernelTop: '35%',
+                        activeInputs: [
+                            {left: '20%', top: '35%'},
+                            {left: '30%', top: '35%'},
+                            {left: '20%', top: '60%'},
+                            {left: '30%', top: '60%'}
+                        ],
+                        calculation: '0.4*0.1 + 0.3*0.2 + 0.6*0.3 + 0.9*0.4 = 0.58',
+                        resultIndex: 3, // 右下角结果节点 (85%, 60%)
+                        bubbleLeft: '25%',
+                        bubbleTop: '30%'
+                    }
+                ];
+                
+                // 如果是Conv1d模式，直接返回基础步骤
+                if (convMode === 'conv1d') {
+                    return baseSteps;
                 }
-            ];
+                
+                // Conv2d模式：为每个步骤添加第二个卷积核
+                return baseSteps.map(step => {
+                    // 创建带有两个卷积核的步骤
+                    return {
+                        ...step,
+                        isConv2d: true,
+                        // 第二个卷积核位置略有偏移
+                        kernel2Left: (parseFloat(step.kernelLeft) + 3) + '%',
+                        kernel2Top: (parseFloat(step.kernelTop) + 3) + '%',
+                        calculation2: step.calculation.replace(/0\.\d/g, match => 
+                                       (parseFloat(match) + 0.1).toFixed(1)).replace('0.47', '0.71')
+                                       .replace('0.27', '0.64').replace('0.59', '0.93').replace('0.58', '0.88')
+                    };
+                });
+            }
             
             // 更新动画
             function updateAnimation(progress) {
+                // 获取当前卷积步骤
+                const convSteps = getConvSteps();
+                
                 // 获取节点和连接
                 const inputNodes = document.querySelectorAll('.node.input');
-                const convNode = document.querySelector('.node.output[style*="left: 50%"]');
+                const f1Node = document.querySelector('.node.output[style*="left: 50%; top: 35%"]');
+                const f2Node = document.getElementById('f2Node');
                 const resultNodes = document.querySelectorAll('.node.result-node');
+                const f2ResultNodes = document.querySelectorAll('.node.result-node-f2');
                 const connections = document.querySelectorAll('.connection');
                 const kernelVisualization = document.querySelector('.kernel-visualization');
                 const calculationBubble = document.querySelector('.calculation-bubble');
+                
+                // 获取或创建第二个卷积核可视化元素
+                let kernel2Visualization = document.querySelector('.kernel-visualization-2');
+                if (!kernel2Visualization) {
+                    kernel2Visualization = document.createElement('div');
+                    kernel2Visualization.className = 'kernel-visualization kernel-visualization-2';
+                    kernel2Visualization.style.display = 'none';
+                    kernel2Visualization.style.borderColor = '#4caf50'; // 第二个卷积核使用绿色
+                    kernel2Visualization.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                    document.getElementById('networkCanvas').appendChild(kernel2Visualization);
+                }
+                
+                // 获取或创建第二个计算气泡
+                let calculationBubble2 = document.querySelector('.calculation-bubble-2');
+                if (!calculationBubble2) {
+                    calculationBubble2 = document.createElement('div');
+                    calculationBubble2.className = 'calculation-bubble calculation-bubble-2';
+                    calculationBubble2.style.display = 'none';
+                    calculationBubble2.style.borderColor = '#4caf50'; // 第二个气泡使用绿色
+                    document.getElementById('networkCanvas').appendChild(calculationBubble2);
+                }
                 
                 // 确定当前步骤
                 const totalSteps = convSteps.length;
@@ -655,23 +804,49 @@
                 
                 // 标记是否已经完成过动画
                 const hasCompletedBefore = document.body.hasAttribute('data-animation-completed');
+                const hasF1Completed = document.body.hasAttribute('data-f1-completed');
                 
                 // 重置所有节点和线条
                 if (progress >= 99.9) {
                     // 动画即将结束时，隐藏所有线条但保留结果节点
-                    document.body.setAttribute('data-animation-completed', 'true');
+                    if (currentConvFunction === 'f2' || convMode === 'conv1d') {
+                        document.body.setAttribute('data-animation-completed', 'true');
+                    } else if (convMode === 'conv2d' && currentConvFunction === 'f1') {
+                        document.body.setAttribute('data-f1-completed', 'true');
+                    }
                     
                     inputNodes.forEach(node => {
                         node.classList.remove('active', 'processing');
                     });
-                    convNode.classList.remove('active', 'processing', 'result');
+                    
+                    f1Node.classList.remove('active', 'processing');
+                    if (f2Node) f2Node.classList.remove('active', 'processing');
                     
                     // 保留所有结果节点的值和样式
                     resultNodes.forEach((node, index) => {
-                        node.classList.add('active', 'result');
-                        node.style.backgroundColor = '#d6ffe0';
-                        node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                        if (convMode === 'conv1d') {
+                            // Conv1d模式只显示f1结果
+                            node.classList.add('active', 'result');
+                            node.style.backgroundColor = '#d6ffe0';
+                            node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                        } else if (currentConvFunction === 'f1' || hasCompletedBefore) {
+                            // Conv2d模式下f1的结果
+                            node.classList.add('active', 'result');
+                            node.style.backgroundColor = '#fff0e6'; // 浅橙色背景
+                            node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                        }
                     });
+                    
+                    // 处理f2结果节点
+                    if (convMode === 'conv2d') {
+                        f2ResultNodes.forEach((node, index) => {
+                            if (currentConvFunction === 'f2' || hasCompletedBefore) {
+                                node.classList.add('active', 'result');
+                                node.style.backgroundColor = '#e8f5e9'; // 浅绿色背景
+                                node.querySelector('.node-content').textContent = convResults2[index].toFixed(2);
+                            }
+                        });
+                    }
                     
                     // 隐藏所有连接线
                     connections.forEach(conn => {
@@ -683,28 +858,53 @@
                     // 隐藏卷积核和计算气泡
                     kernelVisualization.style.display = 'none';
                     calculationBubble.style.display = 'none';
+                    kernel2Visualization.style.display = 'none';
+                    calculationBubble2.style.display = 'none';
                     
                     return; // 结束函数执行
                 }
                 
                 // 如果之前已经完成过动画且现在是重置状态，保留所有结果节点
-                if (hasCompletedBefore && progress === 0) {
+                if ((hasCompletedBefore || hasF1Completed) && progress === 0) {
                     // 显示所有已计算的结果节点
                     resultNodes.forEach((node, index) => {
-                        node.classList.add('active', 'result');
-                        node.style.backgroundColor = '#d6ffe0';
-                        node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                        if (hasCompletedBefore || (hasF1Completed && convMode === 'conv2d')) {
+                            node.classList.add('active', 'result');
+                            if (convMode === 'conv1d') {
+                                node.style.backgroundColor = '#d6ffe0';
+                                node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                            } else {
+                                node.style.backgroundColor = '#fff0e6'; // 浅橙色背景
+                                node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                            }
+                        }
                     });
+                    
+                    // 处理f2结果节点
+                    if (convMode === 'conv2d' && hasCompletedBefore) {
+                        f2ResultNodes.forEach((node, index) => {
+                            node.classList.add('active', 'result');
+                            node.style.backgroundColor = '#e8f5e9'; // 浅绿色背景
+                            node.querySelector('.node-content').textContent = convResults2[index].toFixed(2);
+                        });
+                    }
                 }
                 
                 // 重置节点状态
                 inputNodes.forEach(node => {
                     node.classList.remove('active', 'processing');
                 });
-                convNode.classList.remove('active', 'processing', 'result');
+                
+                // 根据当前处理的卷积函数激活相应节点
+                if (currentConvFunction === 'f1') {
+                    f1Node.classList.remove('active', 'processing', 'result');
+                    if (f2Node) f2Node.classList.remove('active', 'processing', 'result');
+                } else {
+                    f2Node.classList.remove('active', 'processing', 'result');
+                }
                 
                 // 处理结果节点 - 如果之前完成过动画，则不重置结果节点
-                if (!hasCompletedBefore) {
+                if (!hasCompletedBefore && !hasF1Completed) {
                     resultNodes.forEach((node, index) => {
                         if (progress === 0) {
                             // 在动画开始前且未完成过动画时，重置所有结果节点
@@ -714,16 +914,48 @@
                         } else if (index < currentStepIndex) {
                             // 保留先前步骤的结果节点样式和值
                             node.classList.add('active', 'result');
-                            node.style.backgroundColor = '#d6ffe0'; // 有值后变为绿色
-                            node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                            
+                            if (convMode === 'conv1d' || currentConvFunction === 'f1') {
+                                // Conv1d模式或f1函数的结果
+                                if (convMode === 'conv1d') {
+                                    node.style.backgroundColor = '#d6ffe0';
+                                    node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                                } else {
+                                    node.style.backgroundColor = '#fff0e6'; // 浅橙色背景
+                                    node.querySelector('.node-content').textContent = convResults[index].toFixed(2);
+                                }
+                            }
                         } else if (index > currentStepIndex) {
                             // 重置后面步骤的结果节点
                             node.classList.remove('active', 'processing', 'result');
                             node.style.backgroundColor = 'white';
                             node.querySelector('.node-content').textContent = '';
                         }
-                        // 当前步骤的结果节点会在下面处理
                     });
+                    
+                    // 处理f2结果节点
+                    if (convMode === 'conv2d') {
+                        f2ResultNodes.forEach((node, index) => {
+                            if (progress === 0 || currentConvFunction === 'f1') {
+                                // 在f1阶段，重置所有f2结果节点
+                                node.classList.remove('active', 'processing', 'result');
+                                node.style.backgroundColor = 'white';
+                                node.querySelector('.node-content').textContent = '';
+                            } else if (currentConvFunction === 'f2') {
+                                if (index < currentStepIndex) {
+                                    // 保留先前步骤的f2结果节点
+                                    node.classList.add('active', 'result');
+                                    node.style.backgroundColor = '#e8f5e9'; // 浅绿色背景
+                                    node.querySelector('.node-content').textContent = convResults2[index].toFixed(2);
+                                } else if (index > currentStepIndex) {
+                                    // 重置后面步骤的f2结果节点
+                                    node.classList.remove('active', 'processing', 'result');
+                                    node.style.backgroundColor = 'white';
+                                    node.querySelector('.node-content').textContent = '';
+                                }
+                            }
+                        });
+                    }
                 }
                 
                 // 首先隐藏所有连接线
@@ -737,6 +969,9 @@
                 calculationBubble.style.display = 'block';
                 calculationBubble.style.opacity = '1';
                 
+                // 根据当前处理的卷积函数选择相应的节点
+                const currentConvNode = currentConvFunction === 'f1' ? f1Node : f2Node;
+                
                 // 第一阶段(0-30%): 显示卷积核和输入区域
                 if (stepProgress < 0.3) {
                     // 显示卷积核
@@ -749,7 +984,12 @@
                     // 显示卷积核权重
                     calculationBubble.style.left = currentStep.bubbleLeft;
                     calculationBubble.style.top = currentStep.bubbleTop;
-                    calculationBubble.textContent = 'Kernel: [[0.1, 0.2], [0.3, 0.4]]';
+                    
+                    if (currentConvFunction === 'f1') {
+                        calculationBubble.textContent = 'Kernel f₁: [[0.1, 0.2], [0.3, 0.4]]';
+                    } else {
+                        calculationBubble.textContent = 'Kernel f₂: [[0.2, 0.3], [0.1, 0.4]]';
+                    }
                     
                     // 高亮相关输入节点
                     currentStep.activeInputs.forEach(pos => {
@@ -770,10 +1010,10 @@
                         if (node) {
                             node.classList.add('active');
                             
-                            // 高亮从此节点到卷积节点的连接线
+                            // 高亮从此节点到当前卷积节点的连接线
                             connections.forEach(conn => {
                                 if (conn.dataset.startNode === (pos.left + '-' + pos.top) &&
-                                    conn.dataset.endNode.includes('50%')) {
+                                    conn.dataset.endNode === (currentConvNode.style.left + '-' + currentConvNode.style.top)) {
                                     conn.classList.add('active-connection');
                                 }
                             });
@@ -781,20 +1021,24 @@
                     });
                     
                     // 显示计算过程
-                    calculationBubble.textContent = 'Computing: ' + currentStep.calculation;
+                    if (currentConvFunction === 'f1') {
+                        calculationBubble.textContent = 'Computing (f₁): ' + currentStep.calculation;
+                    } else {
+                        calculationBubble.textContent = 'Computing (f₂): ' + currentStep.calculation2;
+                    }
                     calculationBubble.style.left = currentStep.bubbleLeft;
                     calculationBubble.style.top = currentStep.bubbleTop;
                     
-                    // 激活卷积节点
-                    convNode.classList.add('active', 'processing');
+                    // 激活当前卷积节点
+                    currentConvNode.classList.add('active', 'processing');
                 }
                 // 第三阶段(60-100%): 输入线条保持显示，并添加结果线条
                 else {
                     // 隐藏卷积核
                     kernelVisualization.style.display = 'none';
                     
-                    // 高亮卷积节点
-                    convNode.classList.add('active');
+                    // 高亮当前卷积节点
+                    currentConvNode.classList.add('active');
                     
                     // 高亮相关输入节点和保持显示输入线条
                     currentStep.activeInputs.forEach(pos => {
@@ -802,10 +1046,10 @@
                         if (node) {
                             node.classList.add('active');
                             
-                            // 继续显示从此节点到卷积节点的连接线
+                            // 继续显示从此节点到当前卷积节点的连接线
                             connections.forEach(conn => {
                                 if (conn.dataset.startNode === (pos.left + '-' + pos.top) &&
-                                    conn.dataset.endNode.includes('50%')) {
+                                    conn.dataset.endNode === (currentConvNode.style.left + '-' + currentConvNode.style.top)) {
                                     conn.classList.add('active-connection');
                                 }
                             });
@@ -813,23 +1057,49 @@
                     });
                     
                     // 获取当前步骤对应的结果节点
-                    const resultNode = resultNodes[currentStep.resultIndex];
+                    let resultNode;
+                    if (currentConvFunction === 'f1') {
+                        resultNode = resultNodes[currentStep.resultIndex];
+                    } else {
+                        resultNode = f2ResultNodes[currentStep.resultIndex];
+                        // 当f2开始输出结果时，显示对应的结果节点
+                        resultNode.style.display = 'flex';
+                    }
                     
                     // 高亮结果节点并设置值
                     resultNode.classList.add('active', 'result');
-                    resultNode.style.backgroundColor = '#d6ffe0'; // 有值后变为绿色
-                    resultNode.querySelector('.node-content').textContent = convResults[currentStep.resultIndex].toFixed(2);
                     
-                    // 显示结果计算
-                    calculationBubble.textContent = `Result ${currentStep.resultIndex + 1}: ${convResults[currentStep.resultIndex].toFixed(2)}`;
+                    // 根据卷积函数设置不同的结果值和样式
+                    if (convMode === 'conv1d') {
+                        resultNode.style.backgroundColor = '#d6ffe0'; // 绿色背景
+                        resultNode.querySelector('.node-content').textContent = convResults[currentStep.resultIndex].toFixed(2);
+                        
+                        // 显示结果计算
+                        calculationBubble.textContent = `Result ${currentStep.resultIndex + 1}: ${convResults[currentStep.resultIndex].toFixed(2)}`;
+                    } else if (currentConvFunction === 'f1') {
+                        // f1的结果
+                        resultNode.style.backgroundColor = '#fff0e6'; // 浅橙色背景
+                        resultNode.querySelector('.node-content').textContent = convResults[currentStep.resultIndex].toFixed(2);
+                        
+                        // 显示结果计算
+                        calculationBubble.textContent = `f₁ Result: ${convResults[currentStep.resultIndex].toFixed(2)}`;
+                    } else {
+                        // f2的结果
+                        resultNode.style.backgroundColor = '#e8f5e9'; // 浅绿色背景
+                        resultNode.querySelector('.node-content').textContent = convResults2[currentStep.resultIndex].toFixed(2);
+                        
+                        // 显示结果计算
+                        calculationBubble.textContent = `f₂ Result: ${convResults2[currentStep.resultIndex].toFixed(2)}`;
+                    }
+                    
                     calculationBubble.style.left = '60%';
-                    calculationBubble.style.top = resultNode.style.top;
+                    calculationBubble.style.top = parseInt(resultNode.style.top) - 10 + '%';
                     
-                    // 找到并高亮从卷积节点到当前结果节点的连接线
+                    // 找到并高亮从当前卷积节点到当前结果节点的连接线
                     connections.forEach(conn => {
                         // 检查连接是否连接到当前结果节点
                         if (conn.dataset.endNode === (resultNode.style.left + '-' + resultNode.style.top) &&
-                            conn.dataset.startNode.includes('50%')) {
+                            conn.dataset.startNode === (currentConvNode.style.left + '-' + currentConvNode.style.top)) {
                             conn.classList.add('output-connection');
                             
                             // 添加数据点动画
@@ -880,100 +1150,82 @@
             function createConnections() {
                 const canvas = document.getElementById('networkCanvas');
                 const inputNodes = document.querySelectorAll('.node.input');
-                const convNode = document.querySelector('.node.output[style*="left: 50%"]');
+                const f1Node = document.querySelector('.node.output[style*="left: 50%; top: 35%"]');
+                const f2Node = document.getElementById('f2Node');
                 const resultNodes = document.querySelectorAll('.node.result-node');
+                const f2ResultNodes = document.querySelectorAll('.node.result-node-f2');
                 
                 // 清除现有连接
                 const existingConnections = document.querySelectorAll('.connection');
                 existingConnections.forEach(conn => conn.remove());
                 
-                // 创建从输入节点到卷积函数节点的连接
+                // 创建从输入节点到f1节点的连接
                 inputNodes.forEach(inputNode => {
-                    const connection = document.createElement('div');
-                    connection.className = 'connection';
-                    connection.style.display = 'none'; // 初始隐藏
-                    
-                    const inputRect = inputNode.getBoundingClientRect();
-                    const convRect = convNode.getBoundingClientRect();
-                    
-                    const canvasRect = canvas.getBoundingClientRect();
-                    
-                    const startX = inputRect.left + inputRect.width/2 - canvasRect.left;
-                    const startY = inputRect.top + inputRect.height/2 - canvasRect.top;
-                    const endX = convRect.left + convRect.width/2 - canvasRect.left;
-                    const endY = convRect.top + convRect.height/2 - canvasRect.top;
-                    
-                    // 使用贝塞尔曲线控制点计算
-                    const controlX = (startX + endX) / 2;
-                    const controlY = startY - 20; // 向上弯曲
-                    
-                    // 设置曲线路径 (这里我们使用CSS transform代替，更简单)
-                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-                    const angle = Math.atan2(endY - startY, endX - startX);
-                    
-                    connection.style.width = length + 'px';
-                    connection.style.left = startX + 'px';
-                    connection.style.top = startY + 'px';
-                    connection.style.transform = 'rotate(' + angle + 'rad)';
-                    
-                    // 添加数据点用于动画
-                    for (let i = 0; i < 3; i++) {
-                        const dataPoint = document.createElement('div');
-                        dataPoint.className = 'data-point';
-                        dataPoint.style.left = (i * 30) + '%';
-                        connection.appendChild(dataPoint);
-                    }
-                    
-                    // 存储连接的起点和终点节点
-                    connection.dataset.startNode = inputNode.style.left + '-' + inputNode.style.top;
-                    connection.dataset.endNode = convNode.style.left + '-' + convNode.style.top;
-                    
-                    canvas.appendChild(connection);
+                    createConnection(inputNode, f1Node, canvas);
                 });
                 
-                // 创建从卷积函数节点到结果节点的连接
+                // 如果是Conv2d模式，创建从输入节点到f2节点的连接
+                if (convMode === 'conv2d') {
+                    inputNodes.forEach(inputNode => {
+                        createConnection(inputNode, f2Node, canvas);
+                    });
+                }
+                
+                // 创建从f1节点到f1结果节点的连接
                 resultNodes.forEach(resultNode => {
-                    const connection = document.createElement('div');
-                    connection.className = 'connection';
-                    connection.style.display = 'none'; // 初始隐藏
-                    
-                    const convRect = convNode.getBoundingClientRect();
-                    const resultRect = resultNode.getBoundingClientRect();
-                    
-                    const canvasRect = canvas.getBoundingClientRect();
-                    
-                    const startX = convRect.left + convRect.width/2 - canvasRect.left;
-                    const startY = convRect.top + convRect.height/2 - canvasRect.top;
-                    const endX = resultRect.left + resultRect.width/2 - canvasRect.left;
-                    const endY = resultRect.top + resultRect.height/2 - canvasRect.top;
-                    
-                    // 使用贝塞尔曲线控制点计算
-                    const controlX = startX + (endX - startX) * 0.4;
-                    const controlY = startY - 30; // 向上弯曲
-                    
-                    // 设置路径 (使用CSS transform)
-                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-                    const angle = Math.atan2(endY - startY, endX - startX);
-                    
-                    connection.style.width = length + 'px';
-                    connection.style.left = startX + 'px';
-                    connection.style.top = startY + 'px';
-                    connection.style.transform = 'rotate(' + angle + 'rad)';
-                    
-                    // 添加数据点用于动画
-                    for (let i = 0; i < 3; i++) {
-                        const dataPoint = document.createElement('div');
-                        dataPoint.className = 'data-point';
-                        dataPoint.style.left = (i * 30) + '%';
-                        connection.appendChild(dataPoint);
-                    }
-                    
-                    // 存储连接的起点和终点节点
-                    connection.dataset.startNode = convNode.style.left + '-' + convNode.style.top;
-                    connection.dataset.endNode = resultNode.style.left + '-' + resultNode.style.top;
-                    
-                    canvas.appendChild(connection);
+                    createConnection(f1Node, resultNode, canvas);
                 });
+                
+                // 如果是Conv2d模式，创建从f2节点到f2结果节点的连接
+                if (convMode === 'conv2d') {
+                    f2ResultNodes.forEach(resultNode => {
+                        createConnection(f2Node, resultNode, canvas);
+                    });
+                }
+            }
+            
+            // 创建连接线辅助函数
+            function createConnection(startNode, endNode, canvas) {
+                const connection = document.createElement('div');
+                connection.className = 'connection';
+                connection.style.display = 'none'; // 初始隐藏
+                
+                const startRect = startNode.getBoundingClientRect();
+                const endRect = endNode.getBoundingClientRect();
+                
+                const canvasRect = canvas.getBoundingClientRect();
+                
+                const startX = startRect.left + startRect.width/2 - canvasRect.left;
+                const startY = startRect.top + startRect.height/2 - canvasRect.top;
+                const endX = endRect.left + endRect.width/2 - canvasRect.left;
+                const endY = endRect.top + endRect.height/2 - canvasRect.top;
+                
+                // 使用贝塞尔曲线控制点计算
+                const controlX = (startX + endX) / 2;
+                const controlY = startY - 20; // 向上弯曲
+                
+                // 设置曲线路径 (这里我们使用CSS transform代替，更简单)
+                const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                const angle = Math.atan2(endY - startY, endX - startX);
+                
+                connection.style.width = length + 'px';
+                connection.style.left = startX + 'px';
+                connection.style.top = startY + 'px';
+                connection.style.transform = 'rotate(' + angle + 'rad)';
+                
+                // 添加数据点用于动画
+                for (let i = 0; i < 3; i++) {
+                    const dataPoint = document.createElement('div');
+                    dataPoint.className = 'data-point';
+                    dataPoint.style.left = (i * 30) + '%';
+                    connection.appendChild(dataPoint);
+                }
+                
+                // 存储连接的起点和终点节点
+                connection.dataset.startNode = startNode.style.left + '-' + startNode.style.top;
+                connection.dataset.endNode = endNode.style.left + '-' + endNode.style.top;
+                
+                canvas.appendChild(connection);
             }
             
             // 初始化
