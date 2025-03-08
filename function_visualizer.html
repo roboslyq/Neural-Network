@@ -5,110 +5,228 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>神经网络函数可视化</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.24.1/plotly.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
     <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --accent-color: #9b59b6;
+            --border-radius: 10px;
+        }
+        
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 0;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background-size: 600% 600%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--dark-color);
+            min-height: 100vh;
         }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
         .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin: 40px auto;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
         }
+        
         h1 {
-            color: #333;
+            color: var(--dark-color);
             text-align: center;
             margin-bottom: 30px;
+            font-weight: 500;
+            position: relative;
+            padding-bottom: 15px;
         }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            border-radius: 3px;
+        }
+        
         .function-type {
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
         }
+        
         .function-type button {
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            padding: 8px 16px;
-            margin: 0 5px;
-            border-radius: 4px;
+            background-color: var(--light-color);
+            border: none;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: var(--border-radius);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: var(--dark-color);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
         }
+        
         .function-type button.active {
-            background-color: #4a89dc;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            border-color: #4a89dc;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+        
+        .function-type button:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+        }
+        
         .visualization {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 30px;
         }
+        
         .chart-container {
-            flex: 1;
-            min-width: 400px;
-            height: 400px;
-            border: 1px solid #eee;
-            border-radius: 8px;
+            flex: 2;
+            min-width: 500px;
+            height: 450px;
+            border-radius: var(--border-radius);
             overflow: hidden;
             background-color: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
+        
         .controls {
             flex: 1;
             min-width: 300px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+            padding: 25px;
+            background: linear-gradient(145deg, #ffffff, #f3f3f3);
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+        
         .parameter {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
+        
         .parameter label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: var(--dark-color);
+            font-size: 16px;
         }
+        
         .parameter .value {
             display: inline-block;
-            width: 40px;
+            width: 50px;
             text-align: center;
             margin-left: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 5px 0;
+            border-radius: 5px;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
+        
         .slider-container {
             display: flex;
             align-items: center;
         }
+        
         input[type="range"] {
             flex: 1;
             height: 8px;
             -webkit-appearance: none;
             appearance: none;
-            background: #ddd;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
             border-radius: 5px;
             outline: none;
         }
+        
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            background: #4a89dc;
+            background: white;
             cursor: pointer;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
         }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        }
+        
         .formula {
-            margin-top: 30px;
-            padding: 15px;
-            background-color: #f0f0f0;
-            border-radius: 5px;
+            margin-top: 35px;
+            padding: 20px;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: var(--border-radius);
             font-family: 'Courier New', monospace;
             text-align: center;
+            font-size: 18px;
+            color: var(--dark-color);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .plot-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .dimension-switch {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        
+        .dimension-switch button {
+            background-color: var(--light-color);
+            border: none;
+            padding: 12px 25px;
+            margin: 0 8px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: var(--dark-color);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dimension-switch button.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -116,53 +234,110 @@
     <div class="container">
         <h1>一元线性函数可视化</h1>
         
-        <div class="function-type">
-            <button class="active" data-type="linear">线性函数</button>
-            <button data-type="sigmoid">Sigmoid函数</button>
-            <button data-type="relu">ReLU函数</button>
+        <div class="dimension-switch">
+            <button data-dim="1d" class="active">一元函数</button>
+            <button data-dim="2d">二元函数</button>
         </div>
         
-        <div class="visualization">
-            <div class="chart-container">
-                <canvas id="functionChart"></canvas>
+        <!-- 一元函数容器 -->
+        <div id="one-dim-container">
+            <div class="function-type">
+                <button data-type="linear" class="active">线性函数</button>
+                <button data-type="sigmoid">Sigmoid函数</button>
+                <button data-type="relu">ReLU函数</button>
+                <button data-type="tanh">Tanh函数</button>
             </div>
             
-            <div class="controls">
-                <div class="parameter">
-                    <label for="w1">w<sub>1</sub></label>
-                    <div class="slider-container">
-                        <input type="range" id="w1" min="-2" max="2" step="0.1" value="1">
-                        <span class="value" id="w1Value">1</span>
-                    </div>
+            <div class="visualization">
+                <div class="chart-container">
+                    <canvas id="functionChart"></canvas>
                 </div>
                 
-                <div class="parameter">
-                    <label for="b">b</label>
-                    <div class="slider-container">
-                        <input type="range" id="b" min="-2" max="2" step="0.1" value="0">
-                        <span class="value" id="bValue">0</span>
+                <div class="controls">
+                    <div class="parameter">
+                        <label for="w1">权重 (w<sub>1</sub>): <span id="w1Value" class="value">0.5</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="w1" min="-1" max="1" step="0.1" value="0.5">
+                        </div>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="b">偏置 (b): <span id="bValue" class="value">0</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="b" min="-1" max="1" step="0.1" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="formula" id="formula">
+                        g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = 0.5 × x<sub>1</sub> + 0
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- 二元函数容器 -->
+        <div id="two-dim-container" class="hidden">
+            <div class="function-type">
+                <button data-type="linear2d" class="active">线性函数</button>
+                <button data-type="sigmoid2d">Sigmoid函数</button>
+                <button data-type="relu2d">ReLU函数</button>
+                <button data-type="tanh2d">Tanh函数</button>
+            </div>
+            
+            <div class="visualization">
+                <div class="chart-container">
+                    <div id="plot3d" class="plot-container"></div>
+                </div>
                 
-                <div class="formula" id="formula">
-                    g(x<sub>1</sub>) = w<sub>1</sub>x<sub>1</sub> + b = 1 × x<sub>1</sub> + 0
+                <div class="controls">
+                    <div class="parameter">
+                        <label for="w1_2d">权重 (w<sub>1</sub>): <span id="w1_2dValue" class="value">0.5</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="w1_2d" min="-1" max="1" step="0.1" value="0.5">
+                        </div>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="w2_2d">权重 (w<sub>2</sub>): <span id="w2_2dValue" class="value">0.5</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="w2_2d" min="-1" max="1" step="0.1" value="0.5">
+                        </div>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="b_2d">偏置 (b): <span id="b_2dValue" class="value">0</span></label>
+                        <div class="slider-container">
+                            <input type="range" id="b_2d" min="-1" max="1" step="0.1" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="formula" id="formula_2d">
+                        g(x<sub>1</sub>, x<sub>2</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b = 0.5 × x<sub>1</sub> + 0.5 × x<sub>2</sub> + 0
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 图表初始化
+        // 全局变量初始化
+        let currentFunctionType = 'linear';
+        let current2dFunctionType = 'linear2d';
+        let plot3d = null;
+        
+        // 图表初始化 - 一元函数
         const ctx = document.getElementById('functionChart').getContext('2d');
         let functionChart = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
-                    label: 'g(x)',
-                    borderColor: '#4a89dc',
-                    borderWidth: 2,
+                    label: '函数图像',
+                    borderColor: '#3498db',
+                    borderWidth: 3,
                     pointRadius: 0,
-                    fill: false
+                    fill: false,
+                    tension: 0.1,
+                    showLine: true
                 }]
             },
             options: {
@@ -187,14 +362,16 @@
                             color: '#ddd'
                         }
                     }
+                },
+                elements: {
+                    line: {
+                        tension: 0.1
+                    }
                 }
             }
         });
 
-        // 当前函数类型
-        let currentFunctionType = 'linear';
-
-        // 更新图表
+        // 更新一元函数图表
         function updateChart() {
             const w1 = parseFloat(document.getElementById('w1').value);
             const b = parseFloat(document.getElementById('b').value);
@@ -212,15 +389,17 @@
                     y = 1 / (1 + Math.exp(-(w1 * x + b)));
                 } else if (currentFunctionType === 'relu') {
                     y = Math.max(0, w1 * x + b);
+                } else if (currentFunctionType === 'tanh') {
+                    y = Math.tanh(w1 * x + b);
                 }
                 points.push({x, y});
             }
             
             functionChart.data.datasets[0].data = points;
-            functionChart.update();
+            functionChart.update('none');
         }
         
-        // 更新公式显示
+        // 更新一元函数公式显示
         function updateFormula(w1, b) {
             let formula;
             if (currentFunctionType === 'linear') {
@@ -229,14 +408,138 @@
                 formula = `h(g(x<sub>1</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + b) = sigmoid(${w1} × x<sub>1</sub> + ${b})`;
             } else if (currentFunctionType === 'relu') {
                 formula = `h(g(x<sub>1</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${b})`;
+            } else if (currentFunctionType === 'tanh') {
+                formula = `h(g(x<sub>1</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${b})`;
             }
             document.getElementById('formula').innerHTML = formula;
         }
         
-        // 初始化图表
+        // 初始化3D图表
+        function init3DPlot() {
+            const data = generateSurfaceData();
+            const layout = {
+                autosize: true,
+                margin: {l: 0, r: 0, t: 0, b: 0},
+                scene: {
+                    xaxis: {range: [-2, 2]},
+                    yaxis: {range: [-2, 2]},
+                    zaxis: {range: [-2, 2]}
+                }
+            };
+            
+            plot3d = Plotly.newPlot('plot3d', data, layout);
+        }
+        
+        // 生成二元函数的曲面数据
+        function generateSurfaceData() {
+            const w1 = parseFloat(document.getElementById('w1_2d').value);
+            const w2 = parseFloat(document.getElementById('w2_2d').value);
+            const b = parseFloat(document.getElementById('b_2d').value);
+            
+            // 创建x, y, z网格数据
+            const resolution = 20;
+            const x = [];
+            const y = [];
+            const z = [];
+            
+            for (let i = -2; i <= 2; i += 4/resolution) {
+                const xRow = [];
+                const yRow = [];
+                const zRow = [];
+                
+                for (let j = -2; j <= 2; j += 4/resolution) {
+                    xRow.push(i);
+                    yRow.push(j);
+                    
+                    // 计算函数值
+                    const expr = w1 * i + w2 * j + b;
+                    let zVal;
+                    
+                    if (current2dFunctionType === 'linear2d') {
+                        zVal = expr;
+                    } else if (current2dFunctionType === 'sigmoid2d') {
+                        zVal = 1 / (1 + Math.exp(-expr));
+                    } else if (current2dFunctionType === 'relu2d') {
+                        zVal = Math.max(0, expr);
+                    } else if (current2dFunctionType === 'tanh2d') {
+                        zVal = Math.tanh(expr);
+                    }
+                    
+                    zRow.push(zVal);
+                }
+                
+                x.push(xRow);
+                y.push(yRow);
+                z.push(zRow);
+            }
+            
+            // 更新公式
+            updateFormula2d(w1, w2, b);
+            
+            // 配置颜色映射
+            let colorscale;
+            if (current2dFunctionType === 'linear2d') {
+                colorscale = [
+                    [0, 'rgb(13,71,161)'],
+                    [0.5, 'rgb(240,240,240)'],
+                    [1, 'rgb(183,28,28)']
+                ];
+            } else if (current2dFunctionType === 'sigmoid2d') {
+                colorscale = [
+                    [0, 'rgb(211,47,47)'],
+                    [0.5, 'rgb(244,143,177)'],
+                    [1, 'rgb(255,255,255)']
+                ];
+            } else if (current2dFunctionType === 'relu2d') {
+                colorscale = [
+                    [0, 'rgb(27,94,32)'],
+                    [0.5, 'rgb(156,204,101)'],
+                    [1, 'rgb(220,237,200)']
+                ];
+            } else if (current2dFunctionType === 'tanh2d') {
+                colorscale = [
+                    [0, 'rgb(74,20,140)'],
+                    [0.5, 'rgb(240,240,240)'],
+                    [1, 'rgb(213,0,0)']
+                ];
+            }
+            
+            // 创建曲面图数据
+            return [{
+                type: 'surface',
+                x: x,
+                y: y,
+                z: z,
+                colorscale: colorscale,
+                showscale: false
+            }];
+        }
+        
+        // 更新二元函数图表
+        function update3DPlot() {
+            const data = generateSurfaceData();
+            Plotly.react('plot3d', data);
+        }
+        
+        // 更新二元函数公式显示
+        function updateFormula2d(w1, w2, b) {
+            let formula;
+            if (current2dFunctionType === 'linear2d') {
+                formula = `g(x<sub>1</sub>, x<sub>2</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b = ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b}`;
+            } else if (current2dFunctionType === 'sigmoid2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = sigmoid(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            } else if (current2dFunctionType === 'relu2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            } else if (current2dFunctionType === 'tanh2d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
+            }
+            document.getElementById('formula_2d').innerHTML = formula;
+        }
+        
+        // 初始化一元函数图表
         updateChart();
         
-        // 添加事件监听器
+        // 添加一元函数事件监听器
         document.getElementById('w1').addEventListener('input', function() {
             document.getElementById('w1Value').textContent = this.value;
             updateChart();
@@ -247,23 +550,123 @@
             updateChart();
         });
         
-        // 函数类型切换
-        document.querySelectorAll('.function-type button').forEach(button => {
+        // 添加二元函数事件监听器
+        document.getElementById('w1_2d').addEventListener('input', function() {
+            document.getElementById('w1_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        document.getElementById('w2_2d').addEventListener('input', function() {
+            document.getElementById('w2_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        document.getElementById('b_2d').addEventListener('input', function() {
+            document.getElementById('b_2dValue').textContent = this.value;
+            update3DPlot();
+        });
+        
+        // 一元函数类型切换 - 使用新ID
+        document.querySelectorAll('#one-dim-container .function-type button').forEach(button => {
             button.addEventListener('click', function() {
-                document.querySelectorAll('.function-type button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('#one-dim-container .function-type button').forEach(btn => btn.classList.remove('active'));
                 this.classList.add('active');
                 currentFunctionType = this.dataset.type;
                 
                 // 更新标题
                 if (currentFunctionType === 'linear') {
-                    document.querySelector('h1').textContent = '一元线性函数可视化';
+                    document.querySelector('h1').textContent = '线性函数可视化';
                 } else if (currentFunctionType === 'sigmoid') {
                     document.querySelector('h1').textContent = 'Sigmoid函数可视化';
                 } else if (currentFunctionType === 'relu') {
                     document.querySelector('h1').textContent = 'ReLU函数可视化';
+                } else if (currentFunctionType === 'tanh') {
+                    document.querySelector('h1').textContent = 'Tanh函数可视化';
                 }
                 
                 updateChart();
+            });
+        });
+        
+        // 二元函数类型切换 - 使用新ID
+        document.querySelectorAll('#two-dim-container .function-type button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('#two-dim-container .function-type button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                current2dFunctionType = this.dataset.type;
+                
+                // 更新标题
+                if (current2dFunctionType === 'linear2d') {
+                    document.querySelector('h1').textContent = '二元线性函数可视化';
+                } else if (current2dFunctionType === 'sigmoid2d') {
+                    document.querySelector('h1').textContent = '二元Sigmoid函数可视化';
+                } else if (current2dFunctionType === 'relu2d') {
+                    document.querySelector('h1').textContent = '二元ReLU函数可视化';
+                } else if (current2dFunctionType === 'tanh2d') {
+                    document.querySelector('h1').textContent = '二元Tanh函数可视化';
+                }
+                
+                update3DPlot();
+            });
+        });
+        
+        // 维度切换 - 使用新ID
+        document.querySelectorAll('.dimension-switch button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.dimension-switch button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                const dimension = this.dataset.dim;
+                
+                if (dimension === '1d') { 
+                    document.getElementById('one-dim-container').classList.remove('hidden');
+                    document.getElementById('two-dim-container').classList.add('hidden');
+                    // 更新标题
+                    if (currentFunctionType === 'linear') {
+                        document.querySelector('h1').textContent = '线性函数可视化';
+                    } else if (currentFunctionType === 'sigmoid') {
+                        document.querySelector('h1').textContent = 'Sigmoid函数可视化';
+                    } else if (currentFunctionType === 'relu') {
+                        document.querySelector('h1').textContent = 'ReLU函数可视化';
+                    } else if (currentFunctionType === 'tanh') {
+                        document.querySelector('h1').textContent = 'Tanh函数可视化';
+                    }
+                } else {
+                    document.getElementById('one-dim-container').classList.add('hidden');
+                    document.getElementById('two-dim-container').classList.remove('hidden');
+                    
+                    // 确保3D图表初始化
+                    if (!plot3d) {
+                        init3DPlot();
+                    } else {
+                        update3DPlot();
+                    }
+                    
+                    // 更新标题
+                    if (current2dFunctionType === 'linear2d') {
+                        document.querySelector('h1').textContent = '二元线性函数可视化';
+                    } else if (current2dFunctionType === 'sigmoid2d') {
+                        document.querySelector('h1').textContent = '二元Sigmoid函数可视化';
+                    } else if (current2dFunctionType === 'relu2d') {
+                        document.querySelector('h1').textContent = '二元ReLU函数可视化';
+                    } else if (current2dFunctionType === 'tanh2d') {
+                        document.querySelector('h1').textContent = '二元Tanh函数可视化';
+                    }
+                }
+            });
+        });
+
+        // 确保所有DOM元素加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化图表
+            updateChart();
+            
+            // 创建一个canvas 2D上下文对象并设置willReadFrequently属性为true
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                canvas.getContext('2d', { willReadFrequently: true });
             });
         });
     </script>
