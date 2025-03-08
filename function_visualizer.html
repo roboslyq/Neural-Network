@@ -35,7 +35,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px; /* 增加容器最大宽度 */
             margin: 40px auto;
             background-color: rgba(255, 255, 255, 0.95);
             padding: 30px;
@@ -104,9 +104,9 @@
         }
         
         .chart-container {
-            flex: 2;
-            min-width: 500px;
-            height: 450px;
+            flex: 3; /* 增加图表的比例 */
+            min-width: 600px; /* 增加最小宽度 */
+            height: 550px; /* 增加高度 */
             border-radius: var(--border-radius);
             overflow: hidden;
             background-color: white;
@@ -136,57 +136,48 @@
         }
         
         .parameter .value {
-            display: inline-block;
-            width: 50px;
-            text-align: center;
-            margin-left: 10px;
-            background-color: var(--primary-color);
-            color: white;
-            padding: 5px 0;
-            border-radius: 5px;
-            font-weight: 500;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+            color: var(--primary-color);
         }
         
         .slider-container {
-            display: flex;
-            align-items: center;
+            width: 100%;
+            padding: 0 10px;
         }
         
         input[type="range"] {
-            flex: 1;
-            height: 8px;
+            width: 100%;
             -webkit-appearance: none;
-            appearance: none;
-            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            height: 10px;
             border-radius: 5px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
             outline: none;
+            padding: 0;
+            margin: 0;
         }
         
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: white;
             cursor: pointer;
-            border: 2px solid var(--primary-color);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s ease;
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
         
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+            transform: scale(1.2);
         }
         
         .formula {
-            margin-top: 35px;
-            padding: 20px;
-            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            margin-top: 30px;
+            padding: 15px;
             border-radius: var(--border-radius);
-            font-family: 'Courier New', monospace;
+            background-color: rgba(255, 255, 255, 0.5);
             text-align: center;
             font-size: 18px;
             color: var(--dark-color);
@@ -228,6 +219,29 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+        
+        /* 添加保存图像按钮样式 */
+        .save-image-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: var(--light-color);
+            border: none;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--dark-color);
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .save-image-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -257,14 +271,14 @@
                     <div class="parameter">
                         <label for="w1">权重 (w<sub>1</sub>): <span id="w1Value" class="value">0.5</span></label>
                         <div class="slider-container">
-                            <input type="range" id="w1" min="-1" max="1" step="0.1" value="0.5">
+                            <input type="range" id="w1" min="-5" max="5" step="0.1" value="0.5">
                         </div>
                     </div>
                     
                     <div class="parameter">
                         <label for="b">偏置 (b): <span id="bValue" class="value">0</span></label>
                         <div class="slider-container">
-                            <input type="range" id="b" min="-1" max="1" step="0.1" value="0">
+                            <input type="range" id="b" min="-5" max="5" step="0.1" value="0">
                         </div>
                     </div>
                     
@@ -293,21 +307,21 @@
                     <div class="parameter">
                         <label for="w1_2d">权重 (w<sub>1</sub>): <span id="w1_2dValue" class="value">0.5</span></label>
                         <div class="slider-container">
-                            <input type="range" id="w1_2d" min="-1" max="1" step="0.1" value="0.5">
+                            <input type="range" id="w1_2d" min="-5" max="5" step="0.1" value="0.5">
                         </div>
                     </div>
                     
                     <div class="parameter">
                         <label for="w2_2d">权重 (w<sub>2</sub>): <span id="w2_2dValue" class="value">0.5</span></label>
                         <div class="slider-container">
-                            <input type="range" id="w2_2d" min="-1" max="1" step="0.1" value="0.5">
+                            <input type="range" id="w2_2d" min="-5" max="5" step="0.1" value="0.5">
                         </div>
                     </div>
                     
                     <div class="parameter">
                         <label for="b_2d">偏置 (b): <span id="b_2dValue" class="value">0</span></label>
                         <div class="slider-container">
-                            <input type="range" id="b_2d" min="-1" max="1" step="0.1" value="0">
+                            <input type="range" id="b_2d" min="-5" max="5" step="0.1" value="0">
                         </div>
                     </div>
                     
@@ -324,6 +338,9 @@
         let currentFunctionType = 'linear';
         let current2dFunctionType = 'linear2d';
         let plot3d = null;
+        
+        // 中文本地化配置
+        Chart.defaults.font.family = "'Roboto', 'Microsoft YaHei', sans-serif";
         
         // 图表初始化 - 一元函数
         const ctx = document.getElementById('functionChart').getContext('2d');
@@ -351,15 +368,29 @@
                         max: 2,
                         grid: {
                             color: '#ddd'
+                        },
+                        title: {
+                            display: true,
+                            text: 'x₁',
+                            font: {
+                                size: 16
+                            }
                         }
                     },
                     y: {
                         type: 'linear',
                         position: 'center',
-                        min: -2,
-                        max: 2,
+                        min: -10,
+                        max: 10,
                         grid: {
                             color: '#ddd'
+                        },
+                        title: {
+                            display: true,
+                            text: 'g(x₁)',
+                            font: {
+                                size: 16
+                            }
                         }
                     }
                 },
@@ -367,8 +398,46 @@
                     line: {
                         tension: 0.1
                     }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 14
+                        },
+                        callbacks: {
+                            title: function(context) {
+                                return '坐标点';
+                            }
+                        }
+                    },
+                    customCanvasBackgroundColor: {
+                        color: 'white',
+                    }
                 }
-            }
+            },
+            plugins: [{
+                id: 'customCanvasBackgroundColor',
+                beforeDraw: (chart, args, options) => {
+                    const {ctx} = chart;
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'destination-over';
+                    ctx.fillStyle = options.color || '#ffffff';
+                    ctx.fillRect(0, 0, chart.width, chart.height);
+                    ctx.restore();
+                }
+            }]
         });
 
         // 更新一元函数图表
@@ -394,6 +463,29 @@
                 }
                 points.push({x, y});
             }
+            
+            // 动态调整y轴范围
+            let minY = Math.min(...points.map(p => p.y));
+            let maxY = Math.max(...points.map(p => p.y));
+            
+            // 增加一些边距
+            let buffer = Math.max(1, (maxY - minY) * 0.2);
+            
+            // 为激活函数设定合理的范围
+            if (currentFunctionType === 'sigmoid') {
+                minY = Math.min(minY, 0);
+                maxY = Math.max(maxY, 1);
+            } else if (currentFunctionType === 'tanh') {
+                minY = Math.min(minY, -1);
+                maxY = Math.max(maxY, 1);
+            } else {
+                minY = Math.min(minY, -10);
+                maxY = Math.max(maxY, 10);
+            }
+            
+            // 更新图表y轴范围
+            functionChart.options.scales.y.min = minY - buffer;
+            functionChart.options.scales.y.max = maxY + buffer;
             
             functionChart.data.datasets[0].data = points;
             functionChart.update('none');
@@ -421,13 +513,64 @@
                 autosize: true,
                 margin: {l: 0, r: 0, t: 0, b: 0},
                 scene: {
-                    xaxis: {range: [-2, 2]},
-                    yaxis: {range: [-2, 2]},
-                    zaxis: {range: [-2, 2]}
+                    xaxis: {
+                        title: {
+                            text: 'x₁',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'x₂',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    zaxis: {
+                        title: {
+                            text: 'g(x₁,x₂)',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-10, 10]
+                    },
+                    camera: {
+                        eye: {x: 1.5, y: 1.5, z: 1.2} // 调整3D视角
+                    }
                 }
             };
             
-            plot3d = Plotly.newPlot('plot3d', data, layout);
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                locale: 'zh-CN',
+                locales: {
+                    'zh-CN': {
+                        'zoom': '缩放',
+                        'pan': '平移',
+                        'orbitRotation': '旋转',
+                        'resetCameraDefault3d': '重置视图',
+                        'resetCameraLastSave3d': '重置为上次保存的视图',
+                        'toImage': '下载为图片',
+                        'sendDataToCloud': '发送到云端',
+                        'toggleHover': '切换悬停信息',
+                        'resetScale2d': '重置坐标轴',
+                        'hoverClosest3d': '悬停显示',
+                        'toggleSpikelines': '切换标线',
+                        'resetViewMapbox': '重置地图视图'
+                    }
+                }
+            };
+            
+            plot3d = Plotly.newPlot('plot3d', data, layout, config);
         }
         
         // 生成二元函数的曲面数据
@@ -437,7 +580,7 @@
             const b = parseFloat(document.getElementById('b_2d').value);
             
             // 创建x, y, z网格数据
-            const resolution = 20;
+            const resolution = 30; // 增加分辨率
             const x = [];
             const y = [];
             const z = [];
@@ -451,7 +594,6 @@
                     xRow.push(i);
                     yRow.push(j);
                     
-                    // 计算函数值
                     const expr = w1 * i + w2 * j + b;
                     let zVal;
                     
@@ -511,7 +653,15 @@
                 y: y,
                 z: z,
                 colorscale: colorscale,
-                showscale: false
+                showscale: false,
+                contours: {
+                    z: {
+                        show: true,
+                        usecolormap: true,
+                        highlightcolor: "#42a5f5",
+                        project: {z: true}
+                    }
+                }
             }];
         }
         
@@ -534,6 +684,16 @@
                 formula = `h(g(x<sub>1</sub>, x<sub>2</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${b})`;
             }
             document.getElementById('formula_2d').innerHTML = formula;
+        }
+        
+        // 为一元函数图添加保存图像功能
+        function saveChart() {
+            const canvas = document.getElementById('functionChart');
+            const imgURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${currentFunctionType}_function.png`;
+            link.href = imgURL;
+            link.click();
         }
         
         // 初始化一元函数图表
@@ -662,6 +822,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化图表
             updateChart();
+            
+            // 为一元函数图表添加保存按钮
+            const chartContainer = document.querySelector('#one-dim-container .chart-container');
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'save-image-btn';
+            saveBtn.textContent = '保存图片';
+            saveBtn.onclick = saveChart;
+            chartContainer.appendChild(saveBtn);
             
             // 创建一个canvas 2D上下文对象并设置willReadFrequently属性为true
             const canvases = document.querySelectorAll('canvas');
