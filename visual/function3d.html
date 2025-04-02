@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三元函数可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.24.1/plotly.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .isosurface-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: var(--border-radius);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .isosurface-parameter {
+            margin-bottom: 15px;
+        }
+        
+        .isosurface-parameter label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .view-options {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .view-options button {
+            padding: 8px 12px;
+            background-color: var(--light-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .view-options button:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="function-type">
+        <button data-type="linear3d" class="active">线性函数</button>
+        <button data-type="sigmoid3d">Sigmoid函数</button>
+        <button data-type="relu3d">ReLU函数</button>
+        <button data-type="tanh3d">Tanh函数</button>
+        <button data-type="relu63d">ReLU6函数</button>
+        <button data-type="leakyrelu3d">LeakyReLU函数</button>
+        <button data-type="elu3d">ELU函数</button>
+        <button data-type="softplus3d">Softplus函数</button>
+        <button data-type="softmax3d">Softmax函数</button>
+    </div>
+    
+    <div class="visualization">
+        <div class="chart-container">
+            <div id="plot4d" class="plot-container"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="parameter">
+                <label for="w1_3d">权重 (w<sub>1</sub>): <span id="w1_3dValue" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w1_3d" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="w2_3d">权重 (w<sub>2</sub>): <span id="w2_3dValue" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w2_3d" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="w3_3d">权重 (w<sub>3</sub>): <span id="w3_3dValue" class="value">0.5</span></label>
+                <div class="slider-container">
+                    <input type="range" id="w3_3d" min="-5" max="5" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <div class="parameter">
+                <label for="b_3d">偏置 (b): <span id="b_3dValue" class="value">0</span></label>
+                <div class="slider-container">
+                    <input type="range" id="b_3d" min="-5" max="5" step="0.1" value="0">
+                </div>
+            </div>
+            
+            <div class="parameter alpha-param-3d hidden">
+                <label for="alpha_3d">斜率 (α): <span id="alpha_3dValue" class="value">0.01</span></label>
+                <div class="slider-container">
+                    <input type="range" id="alpha_3d" min="0.01" max="0.5" step="0.01" value="0.01">
+                </div>
+            </div>
+            
+            <div class="isosurface-controls">
+                <div class="isosurface-parameter">
+                    <label for="isovalue">等值面值: <span id="isovalueValue" class="value">0.5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="isovalue" min="0" max="1" step="0.05" value="0.5">
+                    </div>
+                </div>
+                
+                <div class="isosurface-parameter">
+                    <label for="opacity">不透明度: <span id="opacityValue" class="value">0.7</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="opacity" min="0.1" max="1" step="0.05" value="0.7">
+                    </div>
+                </div>
+                
+                <div class="view-options">
+                    <button id="show-xslice">显示X切片</button>
+                    <button id="show-yslice">显示Y切片</button>
+                    <button id="show-zslice">显示Z切片</button>
+                    <button id="reset-view">重置视图</button>
+                </div>
+            </div>
+            
+            <div class="formula" id="formula_3d">
+                g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b = 0.5 × x<sub>1</sub> + 0.5 × x<sub>2</sub> + 0.5 × x<sub>3</sub> + 0
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化
+        let current3dFunctionType = 'linear3d';
+        let plot4d = null;
+        let currentSlices = {x: false, y: false, z: false};
+        
+        // 初始化4D图表
+        function init4DPlot() {
+            const data = generateIsosurfaceData();
+            const layout = {
+                autosize: true,
+                margin: {l: 0, r: 0, t: 0, b: 0},
+                scene: {
+                    xaxis: {
+                        title: {
+                            text: 'x₁',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'x₂',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    zaxis: {
+                        title: {
+                            text: 'x₃',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        range: [-2, 2]
+                    },
+                    camera: {
+                        eye: {x: 1.8, y: 1.8, z: 1.5}
+                    },
+                    aspectratio: {x: 1, y: 1, z: 1}
+                }
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                locale: 'zh-CN',
+                locales: {
+                    'zh-CN': {
+                        'zoom': '缩放',
+                        'pan': '平移',
+                        'orbitRotation': '旋转',
+                        'resetCameraDefault3d': '重置视图',
+                        'resetCameraLastSave3d': '重置为上次保存的视图',
+                        'toImage': '下载为图片',
+                        'sendDataToCloud': '发送到云端',
+                        'toggleHover': '切换悬停信息',
+                        'resetScale2d': '重置坐标轴',
+                        'hoverClosest3d': '悬停显示',
+                        'toggleSpikelines': '切换标线',
+                        'resetViewMapbox': '重置地图视图'
+                    }
+                }
+            };
+            
+            Plotly.newPlot('plot4d', data, layout, config);
+        }
+        
+        // 生成等值面数据
+        function generateIsosurfaceData() {
+            const w1 = parseFloat(document.getElementById('w1_3d').value);
+            const w2 = parseFloat(document.getElementById('w2_3d').value);
+            const w3 = parseFloat(document.getElementById('w3_3d').value);
+            const b = parseFloat(document.getElementById('b_3d').value);
+            let alpha = 0.01;
+            const isovalue = parseFloat(document.getElementById('isovalue').value);
+            const opacity = parseFloat(document.getElementById('opacity').value);
+            
+            if (document.querySelector('.alpha-param-3d:not(.hidden)')) {
+                alpha = parseFloat(document.getElementById('alpha_3d').value);
+            }
+            
+            // 更新公式
+            updateFormula3d(w1, w2, w3, b, alpha);
+            
+            // 创建网格
+            const resolution = 30;  // 点的分辨率
+            const x = [];
+            const y = [];
+            const z = [];
+            const values = [];
+            
+            for (let i = 0; i < resolution; i++) {
+                const x_val = -2 + (4 / (resolution - 1)) * i;
+                for (let j = 0; j < resolution; j++) {
+                    const y_val = -2 + (4 / (resolution - 1)) * j;
+                    for (let k = 0; k < resolution; k++) {
+                        const z_val = -2 + (4 / (resolution - 1)) * k;
+                        
+                        x.push(x_val);
+                        y.push(y_val);
+                        z.push(z_val);
+                        
+                        // 计算函数值
+                        const expr = w1 * x_val + w2 * y_val + w3 * z_val + b;
+                        let val;
+                        
+                        if (current3dFunctionType === 'linear3d') {
+                            val = expr;
+                            // 对于线性函数，我们需要归一化值以便可视化
+                            val = (val + 10) / 20; // 假设值在-10到10之间，归一化到0-1
+                        } else if (current3dFunctionType === 'sigmoid3d') {
+                            val = 1 / (1 + Math.exp(-expr));
+                        } else if (current3dFunctionType === 'tanh3d') {
+                            val = Math.tanh(expr);
+                            // tanh的值在-1到1之间，归一化到0-1
+                            val = (val + 1) / 2;
+                        } else if (current3dFunctionType === 'relu3d') {
+                            val = Math.max(0, expr);
+                            // 对于ReLU，我们需要归一化值
+                            val = Math.min(val, 10) / 10; // 限制在0-10，然后归一化
+                        } else if (current3dFunctionType === 'relu63d') {
+                            val = Math.min(Math.max(0, expr), 6);
+                            // 归一化到0-1
+                            val = val / 6;
+                        } else if (current3dFunctionType === 'leakyrelu3d') {
+                            val = expr > 0 ? expr : alpha * expr;
+                            // 归一化
+                            val = (val + 5) / 15; // 假设值在-5到10之间
+                        } else if (current3dFunctionType === 'elu3d') {
+                            val = expr > 0 ? expr : alpha * (Math.exp(expr) - 1);
+                            // 归一化
+                            val = (val + 1) / 11; // 假设值在-1到10之间
+                        } else if (current3dFunctionType === 'softplus3d') {
+                            val = Math.log(1 + Math.exp(expr));
+                            // 归一化
+                            val = Math.min(val, 10) / 10; // 限制在0-10，然后归一化
+                        } else if (current3dFunctionType === 'softmax3d') {
+                            // 对于单个值的Softmax，我们可以将其与0比较
+                            val = Math.exp(expr) / (Math.exp(expr) + 1);
+                        }
+                        
+                        values.push(val);
+                    }
+                }
+            }
+            
+            // 创建等值面数据
+            const data = [{
+                type: 'isosurface',
+                x: x,
+                y: y,
+                z: z,
+                value: values,
+                isomin: isovalue - 0.02,
+                isomax: isovalue + 0.02,
+                opacity: opacity,
+                surface: {
+                    show: true,
+                    count: 1,
+                    fill: 0.95,
+                    pattern: 'all'
+                },
+                colorscale: 'Jet',
+                caps: {
+                    x: {show: false},
+                    y: {show: false},
+                    z: {show: false}
+                }
+            }];
+            
+            // 添加切片(如果启用)
+            if (currentSlices.x) {
+                data.push({
+                    type: 'volume',
+                    x: x,
+                    y: y,
+                    z: z,
+                    value: values,
+                    slices: {
+                        x: {show: true, positions: [0]}
+                    },
+                    colorscale: 'Jet',
+                    opacity: 0.2,
+                    surface: {show: false}
+                });
+            }
+            
+            if (currentSlices.y) {
+                data.push({
+                    type: 'volume',
+                    x: x,
+                    y: y,
+                    z: z,
+                    value: values,
+                    slices: {
+                        y: {show: true, positions: [0]}
+                    },
+                    colorscale: 'Jet',
+                    opacity: 0.2,
+                    surface: {show: false}
+                });
+            }
+            
+            if (currentSlices.z) {
+                data.push({
+                    type: 'volume',
+                    x: x,
+                    y: y,
+                    z: z,
+                    value: values,
+                    slices: {
+                        z: {show: true, positions: [0]}
+                    },
+                    colorscale: 'Jet',
+                    opacity: 0.2,
+                    surface: {show: false}
+                });
+            }
+            
+            return data;
+        }
+        
+        // 更新图表
+        function update4DPlot() {
+            const data = generateIsosurfaceData();
+            Plotly.react('plot4d', data);
+            
+            // 通知父窗口函数类型已更改
+            window.parent.postMessage({
+                type: 'functionChanged',
+                dimension: '3d',
+                functionType: current3dFunctionType
+            }, '*');
+        }
+        
+        // 更新三元函数公式显示
+        function updateFormula3d(w1, w2, w3, b, alpha = 0.01) {
+            let formula;
+            if (current3dFunctionType === 'linear3d') {
+                formula = `g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b = ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b}`;
+            } else if (current3dFunctionType === 'sigmoid3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = sigmoid(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = 1/(1+e<sup>-(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b})</sup>)`;
+            } else if (current3dFunctionType === 'tanh3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = tanh(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = tanh(${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b})`;
+            } else if (current3dFunctionType === 'relu3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = ReLU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = max(0, ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b})`;
+            } else if (current3dFunctionType === 'relu63d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = ReLU6(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = min(max(0, ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b}), 6)`;
+            } else if (current3dFunctionType === 'leakyrelu3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = LeakyReLU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b} : ${alpha} × (${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b})`;
+            } else if (current3dFunctionType === 'elu3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = ELU(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b, α=${alpha}) = 
+                    ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b} ≥ 0 ? ${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b} : ${alpha} × (e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b}</sup> - 1)`;
+            } else if (current3dFunctionType === 'softplus3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = Softplus(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = log(1 + e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b}</sup>)`;
+            } else if (current3dFunctionType === 'softmax3d') {
+                formula = `h(g(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)) = Softmax(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + w<sub>3</sub>x<sub>3</sub> + b) = e<sup>${w1} × x<sub>1</sub> + ${w2} × x<sub>2</sub> + ${w3} × x<sub>3</sub> + ${b}</sup> / Σe<sup>z</sup>`;
+            }
+            document.getElementById('formula_3d').innerHTML = formula;
+        }
+        
+        // 添加事件监听器
+        document.getElementById('w1_3d').addEventListener('input', function() {
+            document.getElementById('w1_3dValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('w2_3d').addEventListener('input', function() {
+            document.getElementById('w2_3dValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('w3_3d').addEventListener('input', function() {
+            document.getElementById('w3_3dValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('b_3d').addEventListener('input', function() {
+            document.getElementById('b_3dValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('alpha_3d').addEventListener('input', function() {
+            document.getElementById('alpha_3dValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('isovalue').addEventListener('input', function() {
+            document.getElementById('isovalueValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        document.getElementById('opacity').addEventListener('input', function() {
+            document.getElementById('opacityValue').textContent = this.value;
+            update4DPlot();
+        });
+        
+        // 切片控制
+        document.getElementById('show-xslice').addEventListener('click', function() {
+            currentSlices.x = !currentSlices.x;
+            this.style.backgroundColor = currentSlices.x ? 'var(--primary-color)' : 'var(--light-color)';
+            this.style.color = currentSlices.x ? 'white' : 'var(--dark-color)';
+            update4DPlot();
+        });
+        
+        document.getElementById('show-yslice').addEventListener('click', function() {
+            currentSlices.y = !currentSlices.y;
+            this.style.backgroundColor = currentSlices.y ? 'var(--primary-color)' : 'var(--light-color)';
+            this.style.color = currentSlices.y ? 'white' : 'var(--dark-color)';
+            update4DPlot();
+        });
+        
+        document.getElementById('show-zslice').addEventListener('click', function() {
+            currentSlices.z = !currentSlices.z;
+            this.style.backgroundColor = currentSlices.z ? 'var(--primary-color)' : 'var(--light-color)';
+            this.style.color = currentSlices.z ? 'white' : 'var(--dark-color)';
+            update4DPlot();
+        });
+        
+        document.getElementById('reset-view').addEventListener('click', function() {
+            Plotly.relayout('plot4d', {
+                'scene.camera.eye': {x: 1.8, y: 1.8, z: 1.5}
+            });
+        });
+        
+        // 函数类型切换
+        document.querySelectorAll('.function-type button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.function-type button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                current3dFunctionType = this.dataset.type;
+                
+                // 显示/隐藏alpha参数
+                if (current3dFunctionType === 'leakyrelu3d' || current3dFunctionType === 'elu3d') {
+                    document.querySelector('.alpha-param-3d').classList.remove('hidden');
+                } else {
+                    document.querySelector('.alpha-param-3d').classList.add('hidden');
+                }
+                
+                update4DPlot();
+            });
+        });
+        
+        // 接收来自父窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'requestCurrentFunction') {
+                window.parent.postMessage({
+                    type: 'functionChanged',
+                    dimension: '3d',
+                    functionType: current3dFunctionType
+                }, '*');
+            }
+        });
+        
+        // 确保DOM元素加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化4D图表
+            init4DPlot();
+        });
+    </script>
+</body>
+</html> 
