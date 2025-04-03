@@ -402,7 +402,14 @@
                     <li>选择概率最高的词/字符作为输出</li>
                     <li>将已生成的内容作为新的输入，重复这个过程</li>
                 </ol>
-                <p>Transformer架构是现代大语言模型（如GPT-3）的核心架构。它通过自注意力机制捕捉上下文关系，并通过前馈网络处理特征转换。</p>
+                <p>实际神经网络中，<span class="key-point">节点与连接的激活是高度选择性的</span>，而非全部激活：</p>
+                <ul>
+                    <li>每个连接都有一个<span class="key-point">权重</span>值，决定信号传递的强度</li>
+                    <li>只有当输入信号强度超过<span class="key-point">激活阈值</span>时，节点才会被激活</li>
+                    <li>网络中通常只有<span class="key-point">部分路径被激活</span>，形成特定的激活模式</li>
+                    <li>这种稀疏激活模式是神经网络能够提取特定特征的关键</li>
+                </ul>
+                <p>Transformer架构是现代大语言模型（如GPT-3）的核心架构。它通过自注意力机制捕捉上下文关系，并通过前馈网络处理特征转换。与传统网络不同，注意力机制使网络能够<span class="key-point">动态关注输入的不同部分</span>，实现更灵活的信息处理。</p>
             </div>
         </div>
         
@@ -716,6 +723,13 @@
                 true // 标记为反馈箭头
             );
             
+            // 添加关于实际神经网络的解释
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = 'italic 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('注: 实际神经网络中，节点并非全部激活，而是基于权重和输入选择性激活', canvas.width / 2, canvas.height * 0.95);
+            ctx.fillText('连接权重决定了信息流动路径，并非所有节点都会同时处理数据', canvas.width / 2, canvas.height * 0.95 + 15);
+            
             return { layers, nodePositions, nodeRadius };
         }
         
@@ -847,133 +861,155 @@
                 // 更新阶段描述
                 updatePhaseDescription();
                 
+                // 生成伪随机激活模式（基于字符和位置的一致性哈希）
+                const currentChar = globalTokens[currentTokenIndex];
+                const seed = currentTokenIndex + currentChar.charCodeAt(0);
+                
+                // 简单的伪随机函数
+                function pseudoRandom(base, max) {
+                    return (base * 9301 + 49297) % 233280 / 233280 * max;
+                }
+                
+                // 为每层选择性激活节点
+                function selectiveActivation(layerIndex, percentage, baseProgress) {
+                    // 为当前层生成一个激活掩码
+                    const activationMask = [];
+                    const layerNodes = nodePositions[layerIndex];
+                    
+                    // 根据当前字符和层索引确定要激活的节点数量
+                    const numNodesToActivate = Math.max(1, Math.ceil(layerNodes.length * percentage));
+                    
+                    // 初始化为全部不激活
+                    for (let i = 0; i < layerNodes.length; i++) {
+                        activationMask.push(false);
+                    }
+                    
+                    // 选择性地激活节点
+                    for (let i = 0; i < numNodesToActivate; i++) {
+                        // 使用简单的伪随机函数来选择要激活的节点
+                        const nodeIndex = Math.floor(pseudoRandom(seed + i + layerIndex, layerNodes.length));
+                        activationMask[nodeIndex] = true;
+                    }
+                    
+                    // 返回激活掩码
+                    return activationMask;
+                }
+                
+                // 获取特定层中激活的节点索引
+                function getActiveNodeIndices(layerIndex, percentage) {
+                    const mask = selectiveActivation(layerIndex, percentage, currentTokenIndex);
+                    const indices = [];
+                    for (let i = 0; i < mask.length; i++) {
+                        if (mask[i]) indices.push(i);
+                    }
+                    return indices;
+                }
+                
                 // 根据当前阶段激活相应的节点和连接
                 switch (currentTokenPhase) {
                     case 'input':
-                        // 输入嵌入层激活
-                        const activeInputNodes = Math.min(Math.ceil(nodePositions[0].length * (phaseProgress / 100)), nodePositions[0].length);
-                        for (let i = 0; i < activeInputNodes; i++) {
+                        // 输入嵌入层选择性激活
+                        const inputActivation = Math.min(1.0, phaseProgress / 100);
+                        const activeInputIndices = getActiveNodeIndices(0, inputActivation);
+                        
+                        for (let i of activeInputIndices) {
                             drawActiveNode(nodePositions[0][i].x, nodePositions[0][i].y, nodeRadius);
                         }
                         
-                        // 如果进度超过50%，开始激活到位置编码层的连接
+                        // 如果进度超过50%，开始激活到位置编码层的选择性连接
                         if (phaseProgress > 50 && nodePositions.length > 1) {
-                            const activeConnections = Math.min(Math.ceil(nodePositions[0].length * ((phaseProgress - 50) / 50)), nodePositions[0].length);
-                            for (let i = 0; i < activeConnections; i++) {
-                                for (let j = 0; j < nodePositions[1].length; j++) {
+                            const connectionPercentage = (phaseProgress - 50) / 50;
+                            
+                            // 位置编码层的选择性激活
+                            const posActivation = Math.min(1.0, (phaseProgress - 50) / 50 * 0.5); // 最多激活50%
+                            const activePosIndices = getActiveNodeIndices(1, posActivation);
+                            
+                            // 只从激活的输入节点连接到激活的位置编码节点
+                            for (let i of activeInputIndices) {
+                                for (let j of activePosIndices) {
                                     drawActiveConnection(
                                         nodePositions[0][i].x, nodePositions[0][i].y,
                                         nodePositions[1][j].x, nodePositions[1][j].y
                                     );
                                 }
+                            }
+                            
+                            // 开始激活位置编码层节点
+                            for (let j of activePosIndices) {
+                                drawActiveNode(nodePositions[1][j].x, nodePositions[1][j].y, nodeRadius);
                             }
                         }
                         break;
                         
                     case 'hidden1':
-                        // 输入嵌入层保持激活
-                        if (nodePositions.length > 0) {
-                            for (let i = 0; i < nodePositions[0].length; i++) {
-                                drawActiveNode(nodePositions[0][i].x, nodePositions[0][i].y, nodeRadius);
+                        // 输入嵌入层保持选择性激活
+                        const persistInputIndices = getActiveNodeIndices(0, 0.8); // 80%的节点保持激活
+                        for (let i of persistInputIndices) {
+                            drawActiveNode(nodePositions[0][i].x, nodePositions[0][i].y, nodeRadius);
+                        }
+                        
+                        // 位置编码层选择性激活
+                        const posActivation = Math.min(1.0, phaseProgress / 33);
+                        const activePosIndices = getActiveNodeIndices(1, posActivation);
+                        
+                        // 从激活的输入节点连接到激活的位置编码节点
+                        for (let i of persistInputIndices) {
+                            for (let j of activePosIndices) {
+                                drawActiveConnection(
+                                    nodePositions[0][i].x, nodePositions[0][i].y,
+                                    nodePositions[1][j].x, nodePositions[1][j].y
+                                );
                             }
                         }
                         
-                        // 输入嵌入层到位置编码层的连接保持激活
-                        if (nodePositions.length > 1) {
-                            for (let i = 0; i < nodePositions[0].length; i++) {
-                                for (let j = 0; j < nodePositions[1].length; j++) {
-                                    drawActiveConnection(
-                                        nodePositions[0][i].x, nodePositions[0][i].y,
-                                        nodePositions[1][j].x, nodePositions[1][j].y
-                                    );
-                                }
-                            }
+                        for (let j of activePosIndices) {
+                            drawActiveNode(nodePositions[1][j].x, nodePositions[1][j].y, nodeRadius);
                         }
                         
-                        // 位置编码层激活
-                        if (nodePositions.length > 1) {
-                            const activePosNodes = Math.min(Math.ceil(nodePositions[1].length * (phaseProgress / 33)), nodePositions[1].length);
-                            for (let i = 0; i < activePosNodes; i++) {
-                                drawActiveNode(nodePositions[1][i].x, nodePositions[1][i].y, nodeRadius);
-                            }
-                        }
-                        
-                        // 位置编码层到自注意力层的连接激活
+                        // 注意力层的选择性激活
                         if (phaseProgress > 33 && nodePositions.length > 2) {
-                            const attentionProgress = phaseProgress - 33;
-                            const activeAttConnections = Math.min(Math.ceil(nodePositions[1].length * (attentionProgress / 33)), nodePositions[1].length);
-                            for (let i = 0; i < activeAttConnections; i++) {
-                                for (let j = 0; j < nodePositions[2].length; j++) {
+                            const attActivation = Math.min(1.0, (phaseProgress - 33) / 67);
+                            const activeAttIndices = getActiveNodeIndices(2, attActivation);
+                            
+                            // 从激活的位置编码节点连接到激活的注意力节点
+                            for (let i of activePosIndices) {
+                                for (let j of activeAttIndices) {
                                     drawActiveConnection(
                                         nodePositions[1][i].x, nodePositions[1][i].y,
                                         nodePositions[2][j].x, nodePositions[2][j].y
                                     );
                                 }
                             }
-                        }
-                        
-                        // 自注意力层节点激活
-                        if (phaseProgress > 66 && nodePositions.length > 2) {
-                            const attNodeProgress = phaseProgress - 66;
-                            const activeAttNodes = Math.min(Math.ceil(nodePositions[2].length * (attNodeProgress / 34)), nodePositions[2].length);
-                            for (let i = 0; i < activeAttNodes; i++) {
-                                drawActiveNode(nodePositions[2][i].x, nodePositions[2][i].y, nodeRadius);
+                            
+                            // 激活注意力层节点
+                            for (let j of activeAttIndices) {
+                                drawActiveNode(nodePositions[2][j].x, nodePositions[2][j].y, nodeRadius);
                             }
                             
-                            // 自注意力层内部连接激活
-                            if (activeAttNodes > 1) {
+                            // 注意力层内部的选择性连接
+                            if (activeAttIndices.length > 1 && phaseProgress > 66) {
                                 ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
                                 ctx.lineWidth = 1;
                                 
-                                for (let j = 0; j < activeAttNodes; j++) {
-                                    for (let k = 0; k < activeAttNodes; k++) {
-                                        if (j !== k) { // 不连接自身
-                                            ctx.beginPath();
-                                            ctx.moveTo(nodePositions[2][j].x, nodePositions[2][j].y);
-                                            
-                                            // 创建弯曲的连接线
-                                            const controlX = nodePositions[2][j].x + 15;
-                                            const controlY = (nodePositions[2][j].y + nodePositions[2][k].y) / 2;
-                                            
-                                            ctx.quadraticCurveTo(
-                                                controlX, controlY,
-                                                nodePositions[2][k].x, nodePositions[2][k].y
-                                            );
-                                            ctx.stroke();
-                                        }
+                                // 计算要连接的注意力节点对数（根据进度）
+                                const attPairPercentage = (phaseProgress - 66) / 34;
+                                const maxPairs = Math.floor(activeAttIndices.length * (activeAttIndices.length - 1) / 2);
+                                const numPairs = Math.ceil(maxPairs * attPairPercentage);
+                                
+                                // 创建节点对
+                                let pairs = [];
+                                for (let i = 0; i < activeAttIndices.length; i++) {
+                                    for (let j = i + 1; j < activeAttIndices.length; j++) {
+                                        pairs.push([activeAttIndices[i], activeAttIndices[j]]);
                                     }
                                 }
-                            }
-                        }
-                        break;
-                        
-                    case 'hidden2':
-                        // 前面的层保持激活
-                        for (let i = 0; i < 3; i++) { // 输入嵌入层、位置编码层、自注意力层
-                            for (let j = 0; j < nodePositions[i].length; j++) {
-                                drawActiveNode(nodePositions[i][j].x, nodePositions[i][j].y, nodeRadius);
-                            }
-                        }
-                        
-                        // 前面层间的连接保持激活
-                        for (let i = 0; i < 2; i++) { // 输入→位置编码→自注意力
-                            for (let j = 0; j < nodePositions[i].length; j++) {
-                                for (let k = 0; k < nodePositions[i + 1].length; k++) {
-                                    drawActiveConnection(
-                                        nodePositions[i][j].x, nodePositions[i][j].y,
-                                        nodePositions[i + 1][k].x, nodePositions[i + 1][k].y
-                                    );
-                                }
-                            }
-                        }
-                        
-                        // 自注意力层内部的连接保持激活
-                        ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
-                        ctx.lineWidth = 1;
-                        
-                        for (let j = 0; j < nodePositions[2].length; j++) {
-                            for (let k = 0; k < nodePositions[2].length; k++) {
-                                if (j !== k) { // 不连接自身
+                                
+                                // 随机选择一些节点对进行连接
+                                pairs = pairs.sort(() => 0.5 - Math.random()).slice(0, numPairs);
+                                
+                                for (let pair of pairs) {
+                                    const j = pair[0];
+                                    const k = pair[1];
                                     ctx.beginPath();
                                     ctx.moveTo(nodePositions[2][j].x, nodePositions[2][j].y);
                                     
@@ -989,11 +1025,80 @@
                                 }
                             }
                         }
+                        break;
                         
-                        // 自注意力层到前馈网络层的连接激活
-                        const activeFeedConnections = Math.ceil(nodePositions[2].length * (phaseProgress / 33));
-                        for (let i = 0; i < activeFeedConnections; i++) {
-                            for (let j = 0; j < nodePositions[3].length; j++) {
+                    case 'hidden2':
+                        // 前面层的节点保持选择性激活
+                        const perInputIndices = getActiveNodeIndices(0, 0.8);
+                        const perPosIndices = getActiveNodeIndices(1, 0.8);
+                        const perAttIndices = getActiveNodeIndices(2, 0.8);
+                        
+                        // 激活保持的节点
+                        for (let i of perInputIndices) {
+                            drawActiveNode(nodePositions[0][i].x, nodePositions[0][i].y, nodeRadius);
+                        }
+                        
+                        for (let j of perPosIndices) {
+                            drawActiveNode(nodePositions[1][j].x, nodePositions[1][j].y, nodeRadius);
+                        }
+                        
+                        for (let k of perAttIndices) {
+                            drawActiveNode(nodePositions[2][k].x, nodePositions[2][k].y, nodeRadius);
+                        }
+                        
+                        // 保持前面层间的选择性连接
+                        for (let i of perInputIndices) {
+                            for (let j of perPosIndices) {
+                                drawActiveConnection(
+                                    nodePositions[0][i].x, nodePositions[0][i].y,
+                                    nodePositions[1][j].x, nodePositions[1][j].y
+                                );
+                            }
+                        }
+                        
+                        for (let j of perPosIndices) {
+                            for (let k of perAttIndices) {
+                                drawActiveConnection(
+                                    nodePositions[1][j].x, nodePositions[1][j].y,
+                                    nodePositions[2][k].x, nodePositions[2][k].y
+                                );
+                            }
+                        }
+                        
+                        // 自注意力层内部的保持选择性连接
+                        if (perAttIndices.length > 1) {
+                            ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
+                            ctx.lineWidth = 1;
+                            
+                            for (let i = 0; i < perAttIndices.length; i++) {
+                                for (let j = i + 1; j < perAttIndices.length; j++) {
+                                    if (Math.random() < 0.7) { // 70%概率连接
+                                        const idx1 = perAttIndices[i];
+                                        const idx2 = perAttIndices[j];
+                                        ctx.beginPath();
+                                        ctx.moveTo(nodePositions[2][idx1].x, nodePositions[2][idx1].y);
+                                        
+                                        // 创建弯曲的连接线
+                                        const controlX = nodePositions[2][idx1].x + 15;
+                                        const controlY = (nodePositions[2][idx1].y + nodePositions[2][idx2].y) / 2;
+                                        
+                                        ctx.quadraticCurveTo(
+                                            controlX, controlY,
+                                            nodePositions[2][idx2].x, nodePositions[2][idx2].y
+                                        );
+                                        ctx.stroke();
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 前馈网络层选择性激活
+                        const feedActivation = Math.min(1.0, phaseProgress / 33);
+                        const activeFeedIndices = getActiveNodeIndices(3, feedActivation);
+                        
+                        // 从激活的注意力节点连接到激活的前馈节点
+                        for (let i of perAttIndices) {
+                            for (let j of activeFeedIndices) {
                                 drawActiveConnection(
                                     nodePositions[2][i].x, nodePositions[2][i].y,
                                     nodePositions[3][j].x, nodePositions[3][j].y
@@ -1001,21 +1106,19 @@
                             }
                         }
                         
-                        // 前馈网络层节点激活
-                        if (phaseProgress > 33) {
-                            const feedProgress = phaseProgress - 33;
-                            const activeFeedNodes = Math.ceil(nodePositions[3].length * (feedProgress / 33));
-                            for (let i = 0; i < activeFeedNodes; i++) {
-                                drawActiveNode(nodePositions[3][i].x, nodePositions[3][i].y, nodeRadius);
-                            }
+                        // 激活前馈网络层节点
+                        for (let j of activeFeedIndices) {
+                            drawActiveNode(nodePositions[3][j].x, nodePositions[3][j].y, nodeRadius);
                         }
                         
-                        // 前馈网络层到归一化层的连接激活
+                        // 归一化层选择性激活
                         if (phaseProgress > 66) {
-                            const normProgress = phaseProgress - 66;
-                            const activeNormConnections = Math.ceil(nodePositions[3].length * (normProgress / 34));
-                            for (let i = 0; i < activeNormConnections; i++) {
-                                for (let j = 0; j < nodePositions[4].length; j++) {
+                            const normActivation = Math.min(1.0, (phaseProgress - 66) / 34);
+                            const activeNormIndices = getActiveNodeIndices(4, normActivation);
+                            
+                            // 从激活的前馈节点连接到激活的归一化节点
+                            for (let i of activeFeedIndices) {
+                                for (let j of activeNormIndices) {
                                     drawActiveConnection(
                                         nodePositions[3][i].x, nodePositions[3][i].y,
                                         nodePositions[4][j].x, nodePositions[4][j].y
@@ -1023,28 +1126,31 @@
                                 }
                             }
                             
-                            // 归一化层节点激活
-                            const activeNormNodes = Math.ceil(nodePositions[4].length * (normProgress / 34));
-                            for (let i = 0; i < activeNormNodes; i++) {
-                                drawActiveNode(nodePositions[4][i].x, nodePositions[4][i].y, nodeRadius);
+                            // 激活归一化层节点
+                            for (let j of activeNormIndices) {
+                                drawActiveNode(nodePositions[4][j].x, nodePositions[4][j].y, nodeRadius);
                             }
                         }
                         break;
                         
                     case 'output':
-                        // 解码器层和输出层激活
+                        // 保持之前层的选择性激活状态
+                        const prevLayerIndices = [];
+                        for (let i = 0; i < 5; i++) {
+                            prevLayerIndices.push(getActiveNodeIndices(i, 0.8));
+                        }
                         
-                        // 所有前面的层保持激活
-                        for (let i = 0; i < 5; i++) { // 输入嵌入层到归一化层
-                            for (let j = 0; j < nodePositions[i].length; j++) {
+                        // 激活保持的节点
+                        for (let i = 0; i < 5; i++) {
+                            for (let j of prevLayerIndices[i]) {
                                 drawActiveNode(nodePositions[i][j].x, nodePositions[i][j].y, nodeRadius);
                             }
                         }
                         
-                        // 所有前面层间的连接保持激活
-                        for (let i = 0; i < 4; i++) { // 输入→位置编码→自注意力→前馈→归一化
-                            for (let j = 0; j < nodePositions[i].length; j++) {
-                                for (let k = 0; k < nodePositions[i + 1].length; k++) {
+                        // 保持前面层间的选择性连接
+                        for (let i = 0; i < 4; i++) {
+                            for (let j of prevLayerIndices[i]) {
+                                for (let k of prevLayerIndices[i + 1]) {
                                     drawActiveConnection(
                                         nodePositions[i][j].x, nodePositions[i][j].y,
                                         nodePositions[i + 1][k].x, nodePositions[i + 1][k].y
@@ -1054,32 +1160,40 @@
                         }
                         
                         // 自注意力层内部的连接保持激活
-                        ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
-                        ctx.lineWidth = 1;
-                        
-                        for (let j = 0; j < nodePositions[2].length; j++) {
-                            for (let k = 0; k < nodePositions[2].length; k++) {
-                                if (j !== k) { // 不连接自身
-                                    ctx.beginPath();
-                                    ctx.moveTo(nodePositions[2][j].x, nodePositions[2][j].y);
-                                    
-                                    // 创建弯曲的连接线
-                                    const controlX = nodePositions[2][j].x + 15;
-                                    const controlY = (nodePositions[2][j].y + nodePositions[2][k].y) / 2;
-                                    
-                                    ctx.quadraticCurveTo(
-                                        controlX, controlY,
-                                        nodePositions[2][k].x, nodePositions[2][k].y
-                                    );
-                                    ctx.stroke();
+                        const attIndices = prevLayerIndices[2];
+                        if (attIndices.length > 1) {
+                            ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
+                            ctx.lineWidth = 1;
+                            
+                            for (let i = 0; i < attIndices.length; i++) {
+                                for (let j = i + 1; j < attIndices.length; j++) {
+                                    if (Math.random() < 0.7) { // 70%概率连接
+                                        const idx1 = attIndices[i];
+                                        const idx2 = attIndices[j];
+                                        ctx.beginPath();
+                                        ctx.moveTo(nodePositions[2][idx1].x, nodePositions[2][idx1].y);
+                                        
+                                        // 创建弯曲的连接线
+                                        const controlX = nodePositions[2][idx1].x + 15;
+                                        const controlY = (nodePositions[2][idx1].y + nodePositions[2][idx2].y) / 2;
+                                        
+                                        ctx.quadraticCurveTo(
+                                            controlX, controlY,
+                                            nodePositions[2][idx2].x, nodePositions[2][idx2].y
+                                        );
+                                        ctx.stroke();
+                                    }
                                 }
                             }
                         }
                         
-                        // 归一化层到解码器层的连接激活
-                        const activeDecoderConnections = Math.ceil(nodePositions[4].length * (phaseProgress / 33));
-                        for (let i = 0; i < activeDecoderConnections && i < nodePositions[4].length; i++) {
-                            for (let j = 0; j < nodePositions[5].length; j++) {
+                        // 解码器层选择性激活
+                        const decoderActivation = Math.min(1.0, phaseProgress / 50);
+                        const activeDecoderIndices = getActiveNodeIndices(5, decoderActivation);
+                        
+                        // 从激活的归一化节点连接到激活的解码器节点
+                        for (let i of prevLayerIndices[4]) {
+                            for (let j of activeDecoderIndices) {
                                 drawActiveConnection(
                                     nodePositions[4][i].x, nodePositions[4][i].y,
                                     nodePositions[5][j].x, nodePositions[5][j].y
@@ -1087,21 +1201,20 @@
                             }
                         }
                         
-                        // 解码器层节点激活
-                        if (phaseProgress > 33) {
-                            const decoderProgress = phaseProgress - 33;
-                            const activeDecoderNodes = Math.ceil(nodePositions[5].length * (decoderProgress / 33));
-                            for (let i = 0; i < activeDecoderNodes && i < nodePositions[5].length; i++) {
-                                drawActiveNode(nodePositions[5][i].x, nodePositions[5][i].y, nodeRadius);
-                            }
+                        // 激活解码器层节点
+                        for (let j of activeDecoderIndices) {
+                            drawActiveNode(nodePositions[5][j].x, nodePositions[5][j].y, nodeRadius);
                         }
                         
-                        // 解码器层到输出层的连接激活
-                        if (phaseProgress > 66) {
-                            const outputProgress = phaseProgress - 66;
-                            const activeOutputConnections = Math.ceil(nodePositions[5].length * (outputProgress / 34));
-                            for (let i = 0; i < activeOutputConnections && i < nodePositions[5].length; i++) {
-                                for (let j = 0; j < nodePositions[6].length; j++) {
+                        // 输出层选择性激活
+                        if (phaseProgress > 70) {
+                            // 当接近输出阶段尾声时，更多输出节点激活，增加预测效果
+                            const outputActivation = Math.min(1.0, (phaseProgress - 70) / 30);
+                            const activeOutputIndices = getActiveNodeIndices(6, outputActivation);
+                            
+                            // 从激活的解码器节点连接到激活的输出节点
+                            for (let i of activeDecoderIndices) {
+                                for (let j of activeOutputIndices) {
                                     drawActiveConnection(
                                         nodePositions[5][i].x, nodePositions[5][i].y,
                                         nodePositions[6][j].x, nodePositions[6][j].y
@@ -1109,10 +1222,28 @@
                                 }
                             }
                             
-                            // 输出层节点激活
-                            const activeOutputNodes = Math.ceil(nodePositions[6].length * (outputProgress / 34));
-                            for (let i = 0; i < activeOutputNodes && i < nodePositions[6].length; i++) {
-                                drawActiveNode(nodePositions[6][i].x, nodePositions[6][i].y, nodeRadius);
+                            // 激活输出层节点
+                            for (let j of activeOutputIndices) {
+                                drawActiveNode(nodePositions[6][j].x, nodePositions[6][j].y, nodeRadius);
+                            }
+                            
+                            // 当输出层基本激活完成，大部分节点被选中后，显示最终的激活节点
+                            if (phaseProgress > 90) {
+                                // 最终选择的输出节点特别突出显示（代表选中的token）
+                                const finalNodeIndex = Math.floor(pseudoRandom(seed + 100, nodePositions[6].length));
+                                ctx.fillStyle = '#e74c3c'; // 更亮的红色
+                                ctx.strokeStyle = '#e74c3c';
+                                ctx.lineWidth = 2;
+                                
+                                // 绘制光晕
+                                ctx.beginPath();
+                                ctx.arc(nodePositions[6][finalNodeIndex].x, nodePositions[6][finalNodeIndex].y, nodeRadius + 8, 0, Math.PI * 2);
+                                ctx.stroke();
+                                
+                                // 再绘制一层光晕
+                                ctx.beginPath();
+                                ctx.arc(nodePositions[6][finalNodeIndex].x, nodePositions[6][finalNodeIndex].y, nodeRadius + 4, 0, Math.PI * 2);
+                                ctx.fill();
                             }
                         }
                         
@@ -1121,14 +1252,30 @@
                         break;
                         
                     case 'complete':
-                        // 所有层全部激活
+                        // 完成阶段，展示整体激活但仍然保持选择性
+                        const finalLayerIndices = [];
+                        const completionActivationRatio = Math.min(1.0, phaseProgress / 50);
+                        
+                        // 根据阶段进度逐渐增加每层被激活的节点数量
                         for (let i = 0; i < nodePositions.length; i++) {
-                            for (let j = 0; j < nodePositions[i].length; j++) {
+                            const activationRatio = Math.min(0.7 + 0.3 * completionActivationRatio, 1.0);
+                            finalLayerIndices.push(getActiveNodeIndices(i, activationRatio));
+                        }
+                        
+                        // 激活所有被选中的节点
+                        for (let i = 0; i < nodePositions.length; i++) {
+                            for (let j of finalLayerIndices[i]) {
                                 drawActiveNode(nodePositions[i][j].x, nodePositions[i][j].y, nodeRadius);
-                                
-                                // 激活到下一层的连接
-                                if (i < nodePositions.length - 1) {
-                                    for (let k = 0; k < nodePositions[i + 1].length; k++) {
+                            }
+                        }
+                        
+                        // 激活层间的选择性连接
+                        for (let i = 0; i < nodePositions.length - 1; i++) {
+                            // 在完成阶段，随机选择一部分连接，显示网络的稀疏性
+                            const connectionFactor = 0.7; // 70%的可能连接被激活
+                            for (let j of finalLayerIndices[i]) {
+                                for (let k of finalLayerIndices[i + 1]) {
+                                    if (Math.random() < connectionFactor) {
                                         drawActiveConnection(
                                             nodePositions[i][j].x, nodePositions[i][j].y,
                                             nodePositions[i + 1][k].x, nodePositions[i + 1][k].y
@@ -1138,25 +1285,30 @@
                             }
                         }
                         
-                        // 自注意力层内部的连接保持激活
-                        ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
-                        ctx.lineWidth = 1;
-                        
-                        for (let j = 0; j < nodePositions[2].length; j++) {
-                            for (let k = 0; k < nodePositions[2].length; k++) {
-                                if (j !== k) { // 不连接自身
-                                    ctx.beginPath();
-                                    ctx.moveTo(nodePositions[2][j].x, nodePositions[2][j].y);
-                                    
-                                    // 创建弯曲的连接线
-                                    const controlX = nodePositions[2][j].x + 15;
-                                    const controlY = (nodePositions[2][j].y + nodePositions[2][k].y) / 2;
-                                    
-                                    ctx.quadraticCurveTo(
-                                        controlX, controlY,
-                                        nodePositions[2][k].x, nodePositions[2][k].y
-                                    );
-                                    ctx.stroke();
+                        // 自注意力层内部的连接
+                        if (finalLayerIndices[2].length > 1) {
+                            ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // 鲜红色
+                            ctx.lineWidth = 1;
+                            
+                            // 随机选择一些注意力连接
+                            for (let i = 0; i < finalLayerIndices[2].length; i++) {
+                                for (let j = i + 1; j < finalLayerIndices[2].length; j++) {
+                                    if (Math.random() < 0.6) { // 60%概率连接
+                                        const idx1 = finalLayerIndices[2][i];
+                                        const idx2 = finalLayerIndices[2][j];
+                                        ctx.beginPath();
+                                        ctx.moveTo(nodePositions[2][idx1].x, nodePositions[2][idx1].y);
+                                        
+                                        // 创建弯曲的连接线
+                                        const controlX = nodePositions[2][idx1].x + 15;
+                                        const controlY = (nodePositions[2][idx1].y + nodePositions[2][idx2].y) / 2;
+                                        
+                                        ctx.quadraticCurveTo(
+                                            controlX, controlY,
+                                            nodePositions[2][idx2].x, nodePositions[2][idx2].y
+                                        );
+                                        ctx.stroke();
+                                    }
                                 }
                             }
                         }
