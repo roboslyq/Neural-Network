@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Architecture</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+        }
+        
+        .container {
+            width: 800px;
+            margin: 0 auto;
+        }
+        
+        svg {
+            width: 100%;
+            height: 1000px;
+        }
+        
+        .no-stroke {
+            stroke: none;
+        }
+        
+        .box {
+            stroke: #000;
+            stroke-width: 2;
+            rx: 6;
+            ry: 6;
+        }
+        
+        .module-container {
+            stroke: #000;
+            stroke-width: 2;
+            fill: #f8f9fa;
+            rx: 10;
+            ry: 10;
+        }
+        
+        .softmax-box {
+            fill: #28a745;  /* Green */
+        }
+        
+        .linear-box {
+            fill: #007bff;  /* Blue */
+        }
+        
+        .add-norm-box {
+            fill: #ffc107;  /* Yellow */
+        }
+        
+        .feed-forward-box {
+            fill: #17a2b8;  /* Cyan */
+        }
+        
+        .attention-box {
+            fill: #6f42c1;  /* Purple */
+        }
+        
+        .embedding-box {
+            fill: #fd7e14;  /* Orange */
+        }
+        
+        .positional-circle {
+            fill: white;
+            stroke: #dc3545;  /* Red */
+            stroke-width: 2;
+        }
+        
+        text {
+            font-family: Arial, sans-serif;
+            dominant-baseline: middle;
+            text-anchor: middle;
+            font-size: 12px;
+        }
+        
+        .white-text {
+            fill: white;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .nx-label {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .arrow {
+            fill: none;
+            stroke: #495057;
+            stroke-width: 1.5;
+            marker-end: url(#arrowhead);
+        }
+        
+        .residual {
+            fill: none;
+            stroke: #495057;
+            stroke-width: 1.5;
+            marker-end: url(#arrowhead);
+        }
+        
+        .connector {
+            fill: none;
+            stroke: #495057;
+            stroke-width: 1.5;
+        }
+
+        .tokenizer-box {
+            fill: white;
+            stroke: #000;
+            stroke-width: 1;
+            rx: 4;
+            ry: 4;
+        }
+    </style>ll
+</head>
+<body>
+    <div class="container">
+        <svg viewBox="0 0 800 1000">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                    refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#495057" />
+                </marker>
+            </defs>
+            
+            <!-- 标题 -->
+            <text x="400" y="30" class="title">Transformer Architecture</text>
+            
+            <!-- Output Probabilities -->
+            <text x="405" y="60">Output Probabilities</text>
+            <path d="M 405 95 L 405 70" class="arrow" />
+            
+            <!-- Softmax -->
+            <rect x="345" y="95" width="120" height="35" class="box softmax-box" />
+            <text x="405" y="112" class="white-text">Softmax</text>
+            
+            <!-- Linear到Softmax的连接 -->
+            <path d="M 405 155 L 405 130" class="arrow" />
+            
+            <!-- Linear -->
+            <rect x="345" y="155" width="120" height="35" class="box linear-box" />
+            <text x="405" y="172" class="white-text">Linear</text>
+            
+            <!-- Encoder 和 Decoder 标签 -->
+            <text x="175" y="200" font-size="18" font-weight="bold">Encoder</text>
+            <text x="405" y="200" font-size="18" font-weight="bold">Decoder</text>
+            
+            <!-- Decoder Module Container -->
+            <rect x="300" y="220" width="210" height="460" class="module-container" />
+            <text x="520" y="220" class="nx-label">6×</text>
+            
+            <!-- Add & Norm 1 -->
+            <rect x="325" y="245" width="160" height="35" class="box add-norm-box" />
+            <text x="405" y="262">Add & Normalize</text>
+            
+            <!-- Feed Forward -->
+            <rect x="325" y="300" width="160" height="50" class="box feed-forward-box" />
+            <text x="405" y="325" class="white-text">Fully Connected Network</text>
+            
+            <!-- Add & Norm 2 -->
+            <rect x="325" y="370" width="160" height="35" class="box add-norm-box" />
+            <text x="405" y="387">Add & Normalize</text>
+            
+            <!-- Multi-Head Attention -->
+            <rect x="325" y="425" width="160" height="50" class="box attention-box" />
+            <text x="405" y="450" class="white-text">Multi-Head Attention</text>
+            
+            <!-- Add & Norm 3 -->
+            <rect x="325" y="495" width="160" height="35" class="box add-norm-box" />
+            <text x="405" y="512">Add & Normalize</text>
+            
+            <!-- Masked Multi-Head Attention -->
+            <rect x="325" y="550" width="160" height="60" class="box attention-box" />
+            <text x="405" y="570" class="white-text">Masked Multi-Head</text>
+            <text x="405" y="590" class="white-text">Attention</text>
+            
+            <!-- Encoder Module Container -->
+            <rect x="70" y="220" width="210" height="320" class="module-container" />
+            <text x="60" y="220" class="nx-label">6×</text>
+            
+            <!-- Add & Norm 1 (Encoder) -->
+            <rect x="95" y="245" width="160" height="35" class="box add-norm-box" />
+            <text x="175" y="262">Add & Normalize</text>
+            
+            <!-- Feed Forward (Encoder) -->
+            <rect x="95" y="300" width="160" height="50" class="box feed-forward-box" />
+            <text x="175" y="325" class="white-text">Fully Connected Network</text>
+            
+            <!-- Add & Norm 2 (Encoder) -->
+            <rect x="95" y="370" width="160" height="35" class="box add-norm-box" />
+            <text x="175" y="387">Add & Normalize</text>
+            
+            <!-- Multi-Head Attention (Encoder) -->
+            <rect x="95" y="425" width="160" height="50" class="box attention-box" />
+            <text x="175" y="450" class="white-text">Multi-Head Attention</text>
+            
+            <!-- Encoder到Decoder的连接 -->
+            <path d="M 175 220 L 175 190 L 405 190 L 405 220" class="arrow" />
+            
+            <!-- Positional Encoding到Multi-Head Attention的连接 -->
+            <!-- Encoder侧 - 使用优化的曲线连接到Multi-Head Attention底部 -->
+            <path d="M 135 580 C 135 550, 135 500, 135 475" class="arrow" />
+            <path d="M 175 580 C 175 550, 175 500, 175 475" class="arrow" />
+            <path d="M 215 580 C 215 550, 215 500, 215 475" class="arrow" />
+            
+            <!-- Decoder侧 - 使用优化的曲线连接到Masked Multi-Head Attention底部 -->
+            <path d="M 365 630 C 365 620, 365 615, 365 610" class="arrow" />
+            <path d="M 405 630 C 405 620, 405 615, 405 610" class="arrow" />
+            <path d="M 445 630 C 445 620, 445 615, 445 610" class="arrow" />
+            
+            <!-- Decoder侧 - 使用优化的曲线连接到Multi-Head Attention底部 -->
+            <path d="M 365 630 C 365 580, 365 520, 365 475" class="arrow" />
+            <path d="M 405 630 C 405 580, 405 520, 405 475" class="arrow" />
+            <path d="M 445 630 C 445 580, 445 520, 445 475" class="arrow" />
+            
+            <!-- Decoder内部箭头 - 改为向上 -->
+            <path d="M 405 300 L 405 280" class="arrow" />
+            <path d="M 405 370 L 405 350" class="arrow" />
+            <path d="M 405 425 L 405 405" class="arrow" />
+            <path d="M 405 495 L 405 475" class="arrow" />
+            <path d="M 405 550 L 405 530" class="arrow" />
+            
+            <!-- Encoder内部箭头 - 改为向上 -->
+            <path d="M 175 300 L 175 280" class="arrow" />
+            <path d="M 175 370 L 175 350" class="arrow" />
+            <path d="M 175 425 L 175 405" class="arrow" />
+            
+            <!-- Decoder残差连接 -->
+            <path d="M 485 325 L 520 325 Q 550 325 550 300 L 550 262 L 485 262" class="residual" />
+            <path d="M 485 450 L 520 450 Q 550 450 550 420 L 550 387 L 485 387" class="residual" />
+            <path d="M 485 575 L 520 575 Q 550 575 550 545 L 550 512 L 485 512" class="residual" />
+            
+            <!-- Encoder残差连接 -->
+            <path d="M 255 325 L 290 325 Q 320 325 320 300 L 320 262 L 255 262" class="residual" />
+            <path d="M 255 450 L 290 450 Q 320 450 320 420 L 320 387 L 255 387" class="residual" />
+            
+            <!-- Input Text -->
+            <rect x="95" y="810" width="160" height="35" class="tokenizer-box" />
+            <text x="175" y="827">Input Text</text>
+            
+            <!-- Tokenizer (Encoder) -->
+            <text x="175" y="780">Tokenizer</text>
+            
+            <!-- Tokenized Text (Encoder) -->
+            <rect x="95" y="720" width="160" height="35" class="tokenizer-box" />
+            <text x="175" y="737">Tokenized Text</text>
+            
+            <!-- Input Embedding -->
+            <rect x="95" y="650" width="160" height="35" class="box embedding-box" />
+            <text x="175" y="667" class="white-text">Embeddings</text>
+            
+            <!-- Positional Encoding (Encoder) -->
+            <text x="175" y="580">Positional Encoding</text>
+            <circle cx="175" cy="605" r="15" class="positional-circle" />
+            <text x="175" y="605" font-size="20">+</text>
+            
+            <!-- Target Text -->
+            <rect x="325" y="860" width="160" height="35" class="tokenizer-box" />
+            <text x="405" y="877">Target Text</text>
+            
+            <!-- Tokenizer (Decoder) -->
+            <text x="405" y="830">Tokenizer</text>
+            
+            <!-- Tokenized Text (Decoder) -->
+            <rect x="325" y="770" width="160" height="35" class="tokenizer-box" />
+            <text x="405" y="787">Tokenized Text</text>
+            
+            <!-- Output Embedding -->
+            <rect x="325" y="700" width="160" height="35" class="box embedding-box" />
+            <text x="405" y="717" class="white-text">Embeddings</text>
+            
+            <!-- Positional Encoding (Decoder) -->
+            <text x="405" y="630">Positional Encoding</text>
+            <circle cx="405" cy="655" r="15" class="positional-circle" />
+            <text x="405" y="655" font-size="20">+</text>
+            
+            <!-- Vertical Connections - 移除重复的连接 -->
+            <path d="M 175 650 L 175 630" class="arrow" />
+            <path d="M 175 720 L 175 685" class="arrow" />
+            <path d="M 175 780 L 175 755" class="arrow" />
+            <path d="M 175 810 L 175 780" class="arrow" />
+            
+            <path d="M 405 700 L 405 680" class="arrow" />
+            <path d="M 405 770 L 405 735" class="arrow" />
+            <path d="M 405 830 L 405 805" class="arrow" />
+            <path d="M 405 860 L 405 830" class="arrow" />
+        </svg>
+    </div>
+</body>
+</html> 
