@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大语言模型高效微调(PEFT)技术详解</title>
+    <style>
+        :root {
+            --primary-color: #4257b2;
+            --secondary-color: #3498db;
+            --accent-color: #ff6b6b;
+            --text-color: #333;
+            --light-bg: #f8f9fa;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --gradient-start: #1a2a6c;
+            --gradient-end: #2a4858;
+            --accent-gradient-start: #ff6b6b;
+            --accent-gradient-end: #ff9e54;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            background-color: #0a1528;
+            line-height: 1.6;
+        }
+        .slides-container {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        .slide {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .slide.active {
+            opacity: 1;
+            z-index: 1;
+        }
+        .slide-content {
+            max-width: 1000px;
+            width: 90%;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        }
+        .slide-number {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 14px;
+            color: #888;
+        }
+        h1, h2, h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 2em;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            position: relative;
+            text-align: center;
+            color: var(--gradient-start);
+        }
+        h2:after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-gradient-start), var(--accent-gradient-end));
+            border-radius: 2px;
+        }
+        h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: var(--gradient-start);
+            position: relative;
+            padding-left: 15px;
+        }
+        h3:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--accent-gradient-start), var(--accent-gradient-end));
+            border-radius: 3px;
+        }
+        p {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        .highlight {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .two-col {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: 20px 0;
+        }
+        .col {
+            flex: 1;
+            padding: 0 15px;
+        }
+        .method-card {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .method-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .method-card h4 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.3em;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            display: block;
+            margin: 0 auto;
+        }
+        .diagram {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin: 20px 0;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+        .diagram:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .navigation {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 10;
+        }
+        .nav-button {
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(26, 42, 108, 0.3);
+        }
+        .nav-button:hover {
+            background: linear-gradient(90deg, var(--gradient-end), var(--gradient-start));
+            box-shadow: 0 6px 15px rgba(26, 42, 108, 0.4);
+            transform: translateY(-2px);
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #eee;
+            padding: 12px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            font-weight: bold;
+        }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .comparison-table tr:hover {
+            background-color: #f0f4f8;
+        }
+        /* SVG样式 */
+        .svg-container {
+            width: 100%;
+            height: 400px;
+            margin: 20px auto;
+        }
+        .pros-cons {
+            display: flex;
+            margin: 20px 0;
+        }
+        .pros, .cons {
+            flex: 1;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .pros {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.05), rgba(46, 204, 113, 0.15));
+            border-left: 4px solid #2ecc71;
+            margin-right: 10px;
+        }
+        .pros:before {
+            content: "✓";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: rgba(46, 204, 113, 0.2);
+        }
+        .cons {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.05), rgba(231, 76, 60, 0.15));
+            border-left: 4px solid #e74c3c;
+            margin-left: 10px;
+        }
+        .cons:before {
+            content: "✕";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: rgba(231, 76, 60, 0.2);
+        }
+        .pros h4, .cons h4 {
+            margin-top: 0;
+            color: var(--text-color);
+            font-size: 1.3em;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+        .arrow-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .arrow-list li {
+            padding-left: 25px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .arrow-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        /* 新增科技感元素 */
+        .slide-header {
+            position: relative;
+            margin-bottom: 30px;
+        }
+        .slide-header:after {
+            content: "";
+            position: absolute;
+            bottom: -15px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-gradient-start), transparent);
+        }
+        .tech-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: linear-gradient(90deg, var(--accent-gradient-start), var(--accent-gradient-end));
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 10px;
+            box-shadow: 0 2px 5px rgba(255, 107, 107, 0.3);
+        }
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(66, 87, 178, 0.05), rgba(66, 87, 178, 0.15));
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            position: relative;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .highlight-box:before {
+            content: "✱";
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            color: rgba(66, 87, 178, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="slides-container">
+        <!-- 幻灯片1: 封面 -->
+        <div class="slide active" id="slide1">
+            <div class="slide-content" style="background: linear-gradient(135deg, #1a2a6c, #2a4858); color: white; position: relative; overflow: hidden;">
+                <!-- 科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.1; z-index: 0;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <!-- 神经网络背景图案 -->
+                        <g fill="none" stroke="white" stroke-width="1">
+                            <!-- 水平线 -->
+                            <line x1="0" y1="100" x2="800" y2="100" />
+                            <line x1="0" y1="200" x2="800" y2="200" />
+                            <line x1="0" y1="300" x2="800" y2="300" />
+                            <line x1="0" y1="400" x2="800" y2="400" />
+                            <line x1="0" y1="500" x2="800" y2="500" />
+                            
+                            <!-- 垂直线 -->
+                            <line x1="100" y1="0" x2="100" y2="600" />
+                            <line x1="200" y1="0" x2="200" y2="600" />
+                            <line x1="300" y1="0" x2="300" y2="600" />
+                            <line x1="400" y1="0" x2="400" y2="600" />
+                            <line x1="500" y1="0" x2="500" y2="600" />
+                            <line x1="600" y1="0" x2="600" y2="600" />
+                            <line x1="700" y1="0" x2="700" y2="600" />
+                            
+                            <!-- 随机连接点 -->
+                            <circle cx="100" cy="100" r="6" fill="white" opacity="0.5" />
+                            <circle cx="400" cy="200" r="6" fill="white" opacity="0.5" />
+                            <circle cx="700" cy="300" r="6" fill="white" opacity="0.5" />
+                            <circle cx="200" cy="400" r="6" fill="white" opacity="0.5" />
+                            <circle cx="300" cy="500" r="6" fill="white" opacity="0.5" />
+                            <circle cx="600" cy="100" r="6" fill="white" opacity="0.5" />
+                            <circle cx="500" cy="300" r="6" fill="white" opacity="0.5" />
+                            
+                            <!-- 连接线 -->
+                            <path d="M100,100 C200,120 300,180 400,200" stroke-width="1.5" opacity="0.5" />
+                            <path d="M400,200 C500,220 600,250 700,300" stroke-width="1.5" opacity="0.5" />
+                            <path d="M700,300 C600,350 400,380 200,400" stroke-width="1.5" opacity="0.5" />
+                            <path d="M200,400 C250,450 280,480 300,500" stroke-width="1.5" opacity="0.5" />
+                            <path d="M300,500 C400,450 500,380 600,300" stroke-width="1.5" opacity="0.5" />
+                            <path d="M600,100 C550,150 520,200 500,300" stroke-width="1.5" opacity="0.5" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <!-- 主标题区域，确保在前景 -->
+                <div style="position: relative; z-index: 2; padding-top: 20px;">
+                    <h1 style="font-size: 3em; margin-bottom: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white;">
+                        大语言模型高效微调技术
+                    </h1>
+                    <div style="margin: 10px auto 40px; width: fit-content; background: linear-gradient(90deg, #ff6b6b, #ff9e54); padding: 5px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(255,107,107,0.3);">
+                        <span style="font-size: 2.5em; font-weight: bold; color: white; letter-spacing: 5px;">PEFT</span>
+                    </div>
+                </div>
+                
+                <!-- 中心图形 - 确保清晰可见 -->
+                <div style="position: relative; z-index: 1; margin: 0 auto 30px; width: 80%; max-width: 700px;">
+                    <svg width="100%" height="280" viewBox="0 0 800 280">
+                        <!-- 蓝色区块代表完整模型 -->
+                        <defs>
+                            <linearGradient id="modelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#4568dc" />
+                                <stop offset="100%" stop-color="#3a6073" />
+                            </linearGradient>
+                            <linearGradient id="tuneGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ff6b6b" />
+                                <stop offset="100%" stop-color="#ee0979" />
+                            </linearGradient>
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="5" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        
+                        <!-- 大模型底板 - 用渐变和阴影增强视觉效果 -->
+                        <rect x="100" y="60" width="600" height="160" rx="15" ry="15" fill="url(#modelGradient)" filter="url(#glow)" />
+                        
+                        <!-- 微调部分 - 使用明亮的红色渐变 -->
+                        <rect x="550" y="60" width="60" height="160" rx="8" ry="8" fill="url(#tuneGradient)" filter="url(#glow)" />
+                        
+                        <!-- 清晰的文字标签 - 确保不会被遮挡 -->
+                        <text x="400" y="140" font-size="34" font-weight="bold" fill="white" text-anchor="middle" filter="url(#glow)">大语言模型</text>
+                        <text x="400" y="180" font-size="20" fill="white" text-anchor="middle">数十亿-数千亿参数</text>
+                        
+                        <text x="580" y="140" font-size="18" font-weight="bold" fill="white" text-anchor="middle">微调部分</text>
+                        <text x="580" y="170" font-size="16" fill="white" text-anchor="middle"><1%参数</text>
+                        
+                        <!-- 说明标签 - 放在图外侧，确保清晰可见 -->
+                        <g opacity="0.9">
+                            <rect x="100" y="240" width="230" height="30" rx="15" ry="15" fill="#f8f9fa" />
+                            <text x="215" y="260" font-size="16" fill="#1a2a6c" text-anchor="middle" font-weight="bold">完整预训练模型权重</text>
+                            
+                            <rect x="550" y="240" width="150" height="30" rx="15" ry="15" fill="#f8f9fa" />
+                            <text x="625" y="260" font-size="16" fill="#ee0979" text-anchor="middle" font-weight="bold">高效微调区域</text>
+                        </g>
+                        
+                        <!-- 指向箭头 -->
+                        <path d="M400,20 L400,50" stroke="white" stroke-width="3" fill="none" />
+                        <polygon points="400,60 390,45 410,45" fill="white" />
+                    </svg>
+                </div>
+                
+                <!-- 底部解释文字 -->
+                <div style="position: relative; z-index: 2; margin-bottom: 10px;">
+                    <p style="text-align: center; font-size: 1.3em; margin: 0; color: rgba(255,255,255,0.9);">
+                        <span style="color: #ff6b6b; font-weight: bold;">P</span>arameter 
+                        <span style="color: #ff6b6b; font-weight: bold;">E</span>fficient 
+                        <span style="color: #ff6b6b; font-weight: bold;">F</span>ine 
+                        <span style="color: #ff6b6b; font-weight: bold;">T</span>uning
+                    </p>
+                    <p style="text-align: center; font-size: 1.4em; margin-top: 5px; background: -webkit-linear-gradient(#ffffff, #a7cfdf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold;">
+                        参数高效微调：以更少的资源实现更好的效果
+                    </p>
+                </div>
+                
+                <div class="slide-number" style="color: rgba(255,255,255,0.7);">1/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片2: 引言 - 为什么需要高效微调 -->
+        <div class="slide" id="slide2">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <circle cx="100" cy="100" r="80" />
+                            <circle cx="700" cy="500" r="150" />
+                            <circle cx="400" cy="300" r="200" />
+                            <path d="M0,0 L800,600" />
+                            <path d="M800,0 L0,600" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>为什么需要高效微调?</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">资源效率</span>
+                        <span class="tech-badge">成本控制</span>
+                        <span class="tech-badge">性能优化</span>
+                    </div>
+                </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>传统全参数微调的挑战</h3>
+                        <ul class="arrow-list">
+                            <li><strong>计算资源需求巨大</strong>：LLaMA-2-70B全量微调需要多台A100 GPU</li>
+                            <li><strong>存储成本高</strong>：每个任务需要存储完整模型副本(数百GB)</li>
+                            <li><strong>训练不稳定</strong>：容易出现过拟合或灾难性遗忘</li>
+                            <li><strong>不适合个性化场景</strong>：难以为每个用户或场景定制模型</li>
+                        </ul>
+                    </div>
+                    <div class="col">
+                        <div class="diagram">
+                            <svg width="400" height="250" viewBox="0 0 400 250">
+                                <!-- 硬件资源图 -->
+                                <rect x="50" y="20" width="300" height="80" fill="#e74c3c" rx="5" ry="5" opacity="0.8"/>
+                                <text x="200" y="65" font-size="16" fill="white" text-anchor="middle">全量微调: 多台A100 GPU ($$$ 高成本)</text>
+                                
+                                <!-- PEFT图 -->
+                                <rect x="50" y="150" width="300" height="80" fill="#2ecc71" rx="5" ry="5" opacity="0.8"/>
+                                <text x="200" y="195" font-size="16" fill="white" text-anchor="middle">高效微调: 单台消费级GPU即可</text>
+                                
+                                <!-- 对比箭头 -->
+                                <path d="M200,100 L200,150" stroke="#333" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+                                <text x="210" y="125" font-size="14" fill="#333">VS</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <h4>PEFT优势</h4>
+                        <ul>
+                            <li>仅微调模型的<1%参数</li>
+                            <li>显著降低计算和存储需求</li>
+                            <li>单GPU训练大型模型成为可能</li>
+                            <li>更容易避免灾难性遗忘</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <h4>PEFT局限</h4>
+                        <ul>
+                            <li>在某些任务上效果可能不如全参数微调</li>
+                            <li>实现复杂度较高</li>
+                            <li>不同方法对不同任务适用性不同</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="slide-number">2/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片3: PEFT方法分类概述 -->
+        <div class="slide" id="slide3">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <circle cx="200" cy="200" r="100" />
+                            <circle cx="600" cy="400" r="120" />
+                            <path d="M0,200 L800,200" />
+                            <path d="M0,400 L800,400" />
+                            <path d="M400,0 L400,600" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>PEFT方法分类概述</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">方法类型</span>
+                        <span class="tech-badge">技术原理</span>
+                        <span class="tech-badge">系统框架</span>
+                    </div>
+                </div>
+                
+                <div class="diagram">
+                    <svg width="800" height="400" viewBox="0 0 800 400">
+                        <!-- 中心PEFT节点 -->
+                        <defs>
+                            <linearGradient id="centerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#4257b2" />
+                                <stop offset="100%" stop-color="#2a4858" />
+                            </linearGradient>
+                            <linearGradient id="categoryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#3498db" />
+                                <stop offset="100%" stop-color="#2980b9" />
+                            </linearGradient>
+                            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="2" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        
+                        <rect x="350" y="20" width="100" height="50" rx="10" ry="10" fill="url(#centerGradient)" filter="url(#shadow)"/>
+                        <text x="400" y="50" font-size="20" fill="white" text-anchor="middle">PEFT</text>
+                        
+                        <!-- 连接线 -->
+                        <line x1="400" y1="70" x2="200" y2="120" stroke="#666" stroke-width="2"/>
+                        <line x1="400" y1="70" x2="400" y2="120" stroke="#666" stroke-width="2"/>
+                        <line x1="400" y1="70" x2="600" y2="120" stroke="#666" stroke-width="2"/>
+                        
+                        <!-- 三大类方法 -->
+                        <rect x="120" y="120" width="160" height="50" rx="10" ry="10" fill="url(#categoryGradient)" filter="url(#shadow)"/>
+                        <text x="200" y="150" font-size="18" fill="white" text-anchor="middle">Additive</text>
+                        <text x="200" y="170" font-size="12" fill="white" text-anchor="middle">添加新参数</text>
+                        
+                        <rect x="320" y="120" width="160" height="50" rx="10" ry="10" fill="url(#categoryGradient)" filter="url(#shadow)"/>
+                        <text x="400" y="150" font-size="18" fill="white" text-anchor="middle">Selective</text>
+                        <text x="400" y="170" font-size="12" fill="white" text-anchor="middle">选择性微调部分参数</text>
+                        
+                        <rect x="520" y="120" width="160" height="50" rx="10" ry="10" fill="url(#categoryGradient)" filter="url(#shadow)"/>
+                        <text x="600" y="150" font-size="18" fill="white" text-anchor="middle">Reparameterization</text>
+                        <text x="600" y="170" font-size="12" fill="white" text-anchor="middle">参数重新参数化</text>
+                        
+                        <!-- Additive下属方法 -->
+                        <line x1="160" y1="170" x2="120" y2="220" stroke="#666" stroke-width="2"/>
+                        <line x1="240" y1="170" x2="280" y2="220" stroke="#666" stroke-width="2"/>
+                        
+                        <rect x="60" y="220" width="120" height="40" rx="5" ry="5" fill="#e67e22" filter="url(#shadow)"/>
+                        <text x="120" y="245" font-size="16" fill="white" text-anchor="middle">Adapter</text>
+                        
+                        <rect x="220" y="220" width="120" height="40" rx="5" ry="5" fill="#e67e22" filter="url(#shadow)"/>
+                        <text x="280" y="245" font-size="16" fill="white" text-anchor="middle">Soft Prompts</text>
+                        
+                        <!-- Soft Prompts下属方法 -->
+                        <line x1="250" y1="260" x2="200" y2="300" stroke="#666" stroke-width="2"/>
+                        <line x1="270" y1="260" x2="270" y2="300" stroke="#666" stroke-width="2"/>
+                        <line x1="290" y1="260" x2="340" y2="300" stroke="#666" stroke-width="2"/>
+                        <line x1="310" y1="260" x2="410" y2="300" stroke="#666" stroke-width="2"/>
+                        
+                        <rect x="150" y="300" width="100" height="35" rx="5" ry="5" fill="#9b59b6" filter="url(#shadow)"/>
+                        <text x="200" y="322" font-size="14" fill="white" text-anchor="middle">Prefix Tuning</text>
+                        
+                        <rect x="220" y="300" width="100" height="35" rx="5" ry="5" fill="#9b59b6" filter="url(#shadow)"/>
+                        <text x="270" y="322" font-size="14" fill="white" text-anchor="middle">Prompt Tuning</text>
+                        
+                        <rect x="290" y="300" width="100" height="35" rx="5" ry="5" fill="#9b59b6" filter="url(#shadow)"/>
+                        <text x="340" y="322" font-size="14" fill="white" text-anchor="middle">P-Tuning v1</text>
+                        
+                        <rect x="360" y="300" width="100" height="35" rx="5" ry="5" fill="#9b59b6" filter="url(#shadow)"/>
+                        <text x="410" y="322" font-size="14" fill="white" text-anchor="middle">P-Tuning v2</text>
+                        
+                        <!-- Reparameterization下属方法 -->
+                        <line x1="560" y1="170" x2="520" y2="220" stroke="#666" stroke-width="2"/>
+                        <line x1="600" y1="170" x2="600" y2="220" stroke="#666" stroke-width="2"/>
+                        <line x1="640" y1="170" x2="680" y2="220" stroke="#666" stroke-width="2"/>
+                        
+                        <rect x="470" y="220" width="100" height="40" rx="5" ry="5" fill="#e74c3c" filter="url(#shadow)"/>
+                        <text x="520" y="245" font-size="16" fill="white" text-anchor="middle">LoRA</text>
+                        
+                        <rect x="550" y="220" width="100" height="40" rx="5" ry="5" fill="#e74c3c" filter="url(#shadow)"/>
+                        <text x="600" y="245" font-size="16" fill="white" text-anchor="middle">AdaLoRA</text>
+                        
+                        <rect x="630" y="220" width="100" height="40" rx="5" ry="5" fill="#e74c3c" filter="url(#shadow)"/>
+                        <text x="680" y="245" font-size="16" fill="white" text-anchor="middle">QLoRA</text>
+                        
+                        <!-- QLoRA下的量化 -->
+                        <line x1="680" y1="260" x2="680" y2="300" stroke="#666" stroke-width="2"/>
+                        <rect x="630" y="300" width="100" height="35" rx="5" ry="5" fill="#16a085" filter="url(#shadow)"/>
+                        <text x="680" y="322" font-size="14" fill="white" text-anchor="middle">量化技术</text>
+                    </svg>
+                </div>
+                
+                <div class="highlight-box">
+                    <p>PEFT方法可分为三大类，每类针对不同的微调场景和需求。我们将系统介绍每种方法的原理、优缺点和应用场景。</p>
+                </div>
+                
+                <div class="slide-number">3/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片4: Additive方法 - Adapter -->
+        <div class="slide" id="slide4">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <line x1="0" y1="100" x2="800" y2="100" stroke-dasharray="5,5" />
+                            <line x1="0" y1="300" x2="800" y2="300" stroke-dasharray="5,5" />
+                            <line x1="0" y1="500" x2="800" y2="500" stroke-dasharray="5,5" />
+                            <line x1="200" y1="0" x2="200" y2="600" stroke-dasharray="5,5" />
+                            <line x1="600" y1="0" x2="600" y2="600" stroke-dasharray="5,5" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>Additive方法一: Adapter</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">插入式设计</span>
+                        <span class="tech-badge">瓶颈结构</span>
+                        <span class="tech-badge">模块化架构</span>
+                    </div>
+                </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>Adapter原理</h3>
+                        <p>Adapter是最早提出的PEFT方法之一，通过在Transformer层中<span class="highlight">插入小型可训练模块</span>，同时冻结原模型参数。</p>
+                        <ul>
+                            <li>在Transformer块中添加新的参数层(通常在注意力层后和/或前馈层后)</li>
+                            <li>典型结构: 下投影→非线性激活→上投影</li>
+                            <li>下投影大幅降维(bottleneck)，减少参数量</li>
+                            <li>只训练Adapter参数，模型其余部分冻结</li>
+                        </ul>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>优点</h4>
+                                <ul>
+                                    <li>实现简单，无需修改原始模型架构</li>
+                                    <li>可以灵活控制参数量(通过调整bottleneck维度)</li>
+                                    <li>模块化设计，支持多任务切换</li>
+                                </ul>
+                            </div>
+                            <div class="cons">
+                                <h4>缺点</h4>
+                                <ul>
+                                    <li>增加了推理延迟(额外层的计算)</li>
+                                    <li>对于超大模型参数效率仍不够高</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="diagram">
+                            <svg width="360" height="450" viewBox="0 0 360 450">
+                                <!-- 渐变定义 -->
+                                <defs>
+                                    <linearGradient id="transformerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#4568dc" />
+                                        <stop offset="100%" stop-color="#3a6073" />
+                                    </linearGradient>
+                                    <linearGradient id="adapterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#ff6b6b" />
+                                        <stop offset="100%" stop-color="#ee0979" />
+                                    </linearGradient>
+                                    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="2" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                
+                                <!-- Transformer块 -->
+                                <rect x="80" y="20" width="200" height="400" rx="5" ry="5" fill="#f8f9fa" stroke="#333" stroke-width="2"/>
+                                <text x="180" y="45" font-size="16" text-anchor="middle" font-weight="bold">Transformer块</text>
+                                
+                                <!-- 内部组件 -->
+                                <rect x="100" y="60" width="160" height="60" rx="5" ry="5" fill="url(#transformerGradient)" filter="url(#dropShadow)"/>
+                                <text x="180" y="95" font-size="14" fill="white" text-anchor="middle">Self-Attention</text>
+                                
+                                <!-- Adapter 1 -->
+                                <rect x="100" y="140" width="160" height="60" rx="5" ry="5" fill="url(#adapterGradient)" filter="url(#dropShadow)"/>
+                                <text x="180" y="175" font-size="14" fill="white" text-anchor="middle">Adapter</text>
+                                <text x="180" y="190" font-size="10" fill="white" text-anchor="middle">(可训练)</text>
+                                
+                                <rect x="100" y="220" width="160" height="60" rx="5" ry="5" fill="url(#transformerGradient)" filter="url(#dropShadow)"/>
+                                <text x="180" y="255" font-size="14" fill="white" text-anchor="middle">Feed Forward</text>
+                                
+                                <!-- Adapter 2 -->
+                                <rect x="100" y="300" width="160" height="60" rx="5" ry="5" fill="url(#adapterGradient)" filter="url(#dropShadow)"/>
+                                <text x="180" y="335" font-size="14" fill="white" text-anchor="middle">Adapter</text>
+                                <text x="180" y="350" font-size="10" fill="white" text-anchor="middle">(可训练)</text>
+                                
+                                <!-- 连接线 -->
+                                <line x1="180" y1="120" x2="180" y2="140" stroke="#333" stroke-width="2"/>
+                                <line x1="180" y1="200" x2="180" y2="220" stroke="#333" stroke-width="2"/>
+                                <line x1="180" y1="280" x2="180" y2="300" stroke="#333" stroke-width="2"/>
+                                <line x1="180" y1="360" x2="180" y2="380" stroke="#333" stroke-width="2"/>
+                                
+                                <!-- Adapter内部结构 -->
+                                <rect x="240" y="240" width="100" height="140" rx="5" ry="5" fill="white" stroke="#e74c3c" stroke-width="2" stroke-dasharray="5,5"/>
+                                <text x="290" y="260" font-size="10" text-anchor="middle" font-weight="bold">Adapter内部结构</text>
+                                
+                                <rect x="260" y="270" width="60" height="25" rx="3" ry="3" fill="url(#adapterGradient)" opacity="0.8"/>
+                                <text x="290" y="286" font-size="10" fill="white" text-anchor="middle">下投影</text>
+                                <text x="290" y="296" font-size="8" fill="white" text-anchor="middle">d → r</text>
+                                
+                                <rect x="260" y="315" width="60" height="25" rx="3" ry="3" fill="url(#adapterGradient)" opacity="0.8"/>
+                                <text x="290" y="331" font-size="10" fill="white" text-anchor="middle">激活函数</text>
+                                
+                                <rect x="260" y="360" width="60" height="25" rx="3" ry="3" fill="url(#adapterGradient)" opacity="0.8"/>
+                                <text x="290" y="376" font-size="10" fill="white" text-anchor="middle">上投影</text>
+                                <text x="290" y="386" font-size="8" fill="white" text-anchor="middle">r → d</text>
+                                
+                                <line x1="290" y1="295" x2="290" y2="315" stroke="#333" stroke-width="1"/>
+                                <line x1="290" y1="340" x2="290" y2="360" stroke="#333" stroke-width="1"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">4/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片5: Additive方法 - Soft Prompts -->
+        <div class="slide" id="slide5">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <circle cx="400" cy="300" r="250" stroke-dasharray="10,10" />
+                            <circle cx="400" cy="300" r="150" stroke-dasharray="5,5" />
+                            <line x1="150" y1="300" x2="650" y2="300" />
+                            <line x1="400" y1="50" x2="400" y2="550" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>Additive方法二: Soft Prompts技术</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">可学习提示</span>
+                        <span class="tech-badge">输入层增强</span>
+                        <span class="tech-badge">连续向量</span>
+                    </div>
+                </div>
+                
+                <p>Soft Prompts方法将可训练参数添加到输入层，通过学习特殊的连续向量来引导模型的行为。</p>
+                
+                <div class="diagram">
+                    <svg width="750" height="230" viewBox="0 0 750 230">
+                        <!-- 渐变定义 -->
+                        <defs>
+                            <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#3498db" />
+                                <stop offset="100%" stop-color="#2980b9" />
+                            </linearGradient>
+                            <linearGradient id="promptGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ff6b6b" />
+                                <stop offset="100%" stop-color="#ee0979" />
+                            </linearGradient>
+                            <filter id="boxShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                <feGaussianBlur stdDeviation="1" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        
+                        <!-- Prefix/Prompt Tuning的对比 -->
+                        <rect x="20" y="20" width="710" height="190" rx="5" ry="5" fill="#f8f9fa" stroke="#333" stroke-width="1"/>
+                        
+                        <!-- 模型输入表示 -->
+                        <rect x="50" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="80" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="110" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="140" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="170" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="200" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <text x="125" y="100" font-size="12" text-anchor="middle" font-weight="bold">实际文本词元嵌入</text>
+                        <text x="125" y="115" font-size="10" text-anchor="middle">(冻结)</text>
+                        
+                        <!-- Prompt Tuning -->
+                        <text x="250" y="40" font-size="14" text-anchor="middle" font-weight="bold">Prompt Tuning</text>
+                        <rect x="250" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="280" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="310" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="340" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="370" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="400" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <text x="325" y="100" font-size="12" text-anchor="middle" font-weight="bold">输入层添加可学习的虚拟词元</text>
+                        <text x="280" y="115" font-size="10" text-anchor="middle" fill="#e74c3c" font-weight="bold">(可训练)</text>
+                        <text x="370" y="115" font-size="10" text-anchor="middle" fill="#3498db">(冻结)</text>
+                        
+                        <!-- Prefix Tuning -->
+                        <text x="570" y="40" font-size="14" text-anchor="middle" font-weight="bold">Prefix Tuning</text>
+                        <rect x="490" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="520" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="550" y="50" width="30" height="30" fill="url(#promptGradient)" filter="url(#boxShadow)"/>
+                        <rect x="580" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="610" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <rect x="640" y="50" width="30" height="30" fill="url(#textGradient)" filter="url(#boxShadow)"/>
+                        <text x="565" y="100" font-size="12" text-anchor="middle" font-weight="bold">每层注意力块都添加可学习的前缀</text>
+                        <text x="520" y="115" font-size="10" text-anchor="middle" fill="#e74c3c" font-weight="bold">(可训练)</text>
+                        <text x="610" y="115" font-size="10" text-anchor="middle" fill="#3498db">(冻结)</text>
+                        
+                        <!-- P-Tuning -->
+                        <text x="310" y="150" font-size="14" text-anchor="middle" font-weight="bold">P-Tuning 特点</text>
+                        <rect x="120" y="170" width="200" height="30" rx="15" ry="15" fill="#9b59b6" fill-opacity="0.7" filter="url(#boxShadow)"/>
+                        <text x="220" y="190" font-size="12" fill="white" text-anchor="middle" font-weight="bold">v1: 使用小型网络生成连续提示向量</text>
+                        
+                        <rect x="350" y="170" width="280" height="30" rx="15" ry="15" fill="#9b59b6" fill-opacity="0.7" filter="url(#boxShadow)"/>
+                        <text x="490" y="190" font-size="12" fill="white" text-anchor="middle" font-weight="bold">v2: 扩展到更多层和位置，类似Prefix Tuning但效率更高</text>
+                    </svg>
+                </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <div class="method-card">
+                            <h4>Prefix Tuning</h4>
+                            <p>在<span class="highlight">每层Transformer块</span>的注意力层添加可训练的前缀向量。</p>
+                            <ul>
+                                <li>为K和V添加可训练的前缀向量</li>
+                                <li>训练量较大，但表现优秀</li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>Prompt Tuning</h4>
+                            <p>仅在<span class="highlight">输入嵌入层</span>添加可训练的虚拟词元。</p>
+                            <ul>
+                                <li>简单高效，参数更少</li>
+                                <li>在超大模型上效果接近Prefix Tuning</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="method-card">
+                            <h4>P-Tuning v1</h4>
+                            <p>使用<span class="highlight">小型神经网络</span>生成可优化的连续提示向量。</p>
+                            <ul>
+                                <li>提高了提示的表达能力</li>
+                                <li>适合需要复杂语义理解的任务</li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>P-Tuning v2</h4>
+                            <p><span class="highlight">扩展版</span>的P-Tuning，将可训练提示扩展到模型的多个层。</p>
+                            <ul>
+                                <li>结合了Prefix Tuning的优势</li>
+                                <li>优化了实现，效率和效果更好</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">5/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片6: Selective方法 -->
+        <div class="slide" id="slide6">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <rect x="50" y="50" width="700" height="500" rx="20" ry="20" stroke-dasharray="5,5" />
+                            <rect x="100" y="100" width="600" height="400" rx="15" ry="15" stroke-dasharray="5,5" />
+                            <rect x="150" y="150" width="500" height="300" rx="10" ry="10" stroke-dasharray="5,5" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>Selective方法: 选择性参数微调</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">精确选择</span>
+                        <span class="tech-badge">参数筛选</span>
+                        <span class="tech-badge">稀疏优化</span>
+                    </div>
+                </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>核心思想</h3>
+                        <p>选择性方法并不添加新参数，而是<span class="highlight">有选择地仅微调原始模型中的一部分参数</span>，冻结其余参数。</p>
+                        <div class="method-card">
+                            <h4>BitFit</h4>
+                            <p>仅微调模型中的所有偏置(bias)参数。</p>
+                            <ul>
+                                <li>参数量极少(通常&lt;1%)</li>
+                                <li>实现简单，适合轻量级调整</li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>Sparse Fine-Tuning</h4>
+                            <p>根据重要性度量选择特定参数子集进行微调。</p>
+                            <ul>
+                                <li>使用梯度或敏感度分析找出关键参数</li>
+                                <li>灵活性高，可控制微调比例</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="diagram">
+                            <svg width="400" height="400" viewBox="0 0 400 400">
+                                <!-- 渐变和效果定义 -->
+                                <defs>
+                                    <linearGradient id="modelBoxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#f8f9fa" />
+                                        <stop offset="100%" stop-color="#e9ecef" />
+                                    </linearGradient>
+                                    <linearGradient id="biasGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#ff6b6b" />
+                                        <stop offset="100%" stop-color="#ee0979" />
+                                    </linearGradient>
+                                    <filter id="matrixShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                        <feGaussianBlur stdDeviation="1" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                
+                                <!-- 模型示意图 -->
+                                <rect x="50" y="30" width="300" height="340" rx="10" ry="10" fill="url(#modelBoxGradient)" stroke="#333" stroke-width="2" filter="url(#matrixShadow)"/>
+                                <text x="200" y="60" font-size="18" text-anchor="middle" font-weight="bold">大型语言模型</text>
+                                
+                                <!-- 参数矩阵示意 -->
+                                <rect x="80" y="80" width="240" height="240" rx="5" ry="5" fill="white" stroke="#333" stroke-width="1"/>
+                                
+                                <!-- BitFit - 仅偏置 -->
+                                <text x="200" y="350" font-size="14" text-anchor="middle" font-weight="bold">BitFit: 只微调偏置参数</text>
+                                
+                                <!-- 创建网格形式的参数矩阵图 -->
+                                <g id="paramGrid">
+                                    <!-- 这里创建一个10x10的网格来表示参数 -->
+                                    <!-- 行 -->
+                                    <line x1="80" y1="104" x2="320" y2="104" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="128" x2="320" y2="128" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="152" x2="320" y2="152" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="176" x2="320" y2="176" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="200" x2="320" y2="200" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="224" x2="320" y2="224" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="248" x2="320" y2="248" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="272" x2="320" y2="272" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="80" y1="296" x2="320" y2="296" stroke="#ddd" stroke-width="1"/>
+                                    
+                                    <!-- 列 -->
+                                    <line x1="104" y1="80" x2="104" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="128" y1="80" x2="128" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="152" y1="80" x2="152" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="176" y1="80" x2="176" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="200" y1="80" x2="200" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="224" y1="80" x2="224" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="248" y1="80" x2="248" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="272" y1="80" x2="272" y2="320" stroke="#ddd" stroke-width="1"/>
+                                    <line x1="296" y1="80" x2="296" y2="320" stroke="#ddd" stroke-width="1"/>
+                                </g>
+                                
+                                <!-- BitFit可训练参数 (偏置参数) -->
+                                <rect x="80" y="320" width="240" height="12" fill="url(#biasGradient)" filter="url(#matrixShadow)"/>
+                                <text x="200" y="328" font-size="8" fill="white" text-anchor="middle" font-weight="bold">偏置参数</text>
+                                
+                                <!-- Sparse Fine-Tuning可训练参数 (分散的点) -->
+                                <circle cx="104" cy="104" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="152" cy="128" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="200" cy="176" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="128" cy="200" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="272" cy="224" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="224" cy="248" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="296" cy="272" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="176" cy="296" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="248" cy="152" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="104" cy="248" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="296" cy="104" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="152" cy="272" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="224" cy="128" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <circle cx="176" cy="224" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                
+                                <!-- 图例 -->
+                                <circle cx="100" cy="375" r="5" fill="#3498db" filter="url(#matrixShadow)"/>
+                                <text x="180" y="377" font-size="10" text-anchor="middle" font-weight="bold">Sparse Fine-Tuning: 重要参数</text>
+                                
+                                <rect x="240" y="370" width="20" height="10" fill="url(#biasGradient)" filter="url(#matrixShadow)"/>
+                                <text x="330" y="377" font-size="10" text-anchor="middle" font-weight="bold">BitFit: 偏置参数</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="pros-cons">
+                    <div class="pros">
+                        <h4>Selective方法优势</h4>
+                        <ul>
+                            <li>实现非常简单，几乎无需架构修改</li>
+                            <li>存储效率高，仅需存储被更新的参数</li>
+                            <li>计算高效，冻结大部分参数减少计算量</li>
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <h4>Selective方法局限</h4>
+                        <ul>
+                            <li>性能可能不如其他PEFT方法</li>
+                            <li>选择最优参数子集需要额外分析</li>
+                            <li>难以控制微调的精确度和范围</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="slide-number">6/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片7: Reparameterization方法 - LoRA -->
+        <div class="slide" id="slide7">
+            <div class="slide-content">
+                <!-- 添加科技感背景元素 -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0; pointer-events: none;">
+                    <svg width="100%" height="100%" viewBox="0 0 800 600">
+                        <g fill="none" stroke="#4257b2" stroke-width="1">
+                            <path d="M100,50 L700,50 L700,550 L100,550 Z" />
+                            <path d="M150,100 L650,100 L650,500 L150,500 Z" />
+                            <path d="M200,150 L600,150 L600,450 L200,450 Z" />
+                            <path d="M250,200 L550,200 L550,400 L250,400 Z" />
+                            <path d="M300,250 L500,250 L500,350 L300,350 Z" />
+                            <line x1="100" y1="50" x2="250" y2="200" />
+                            <line x1="700" y1="50" x2="550" y2="200" />
+                            <line x1="100" y1="550" x2="250" y2="400" />
+                            <line x1="700" y1="550" x2="550" y2="400" />
+                        </g>
+                    </svg>
+                </div>
+                
+                <div class="slide-header">
+                    <h2>Reparameterization方法一: LoRA</h2>
+                    <div style="text-align: center; margin-top: -10px;">
+                        <span class="tech-badge">低秩分解</span>
+                        <span class="tech-badge">矩阵近似</span>
+                        <span class="tech-badge">参数高效</span>
+                    </div>
+                </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>LoRA: 低秩适应</h3>
+                        <p><span class="highlight">Low-Rank Adaptation</span> (LoRA)是目前最流行的PEFT方法，通过低秩分解来有效减少参数量。</p>
+                        <p>核心思想：模型权重矩阵的更新可以通过低秩分解矩阵来近似。</p>
+                        <ul>
+                            <li>冻结预训练权重矩阵 W ∈ ℝ<sup>d×k</sup></li>
+                            <li>添加参数高效的低秩更新: W + ΔW = W + BA</li>
+                            <li>其中 B ∈ ℝ<sup>d×r</sup>, A ∈ ℝ<sup>r×k</sup>, 且秩 r ≪ min(d,k)</li>
+                            <li>训练时仅更新矩阵A和B</li>
+                            <li>通常仅应用于模型的部分层(如注意力的权重)</li>
+                        </ul>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>优点</h4>
+                                <ul>
+                                    <li>参数量极少(通常仅为全量参数的0.1%-1%)</li>
+                                    <li>性能接近全参数微调</li>
+                                    <li>训练稳定性好</li>
+                                    <li>可多任务合并(通过不同LoRA适配器组合)</li>
+                                </ul>
+                            </div>
+                            <div class="cons">
+                                <h4>缺点</h4>
+                                <ul>
+                                    <li>需要为不同层设置不同的秩</li>
+                                    <li>矩阵乘法在某些硬件上可能效率不高</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="diagram">
+                            <svg width="380" height="450" viewBox="0 0 380 450">
+                                <!-- 渐变和效果定义 -->
+                                <defs>
+                                    <linearGradient id="pretrainedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#3498db" />
+                                        <stop offset="100%" stop-color="#2980b9" />
+                                    </linearGradient>
+                                    <linearGradient id="loraGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#ff6b6b" />
+                                        <stop offset="100%" stop-color="#ee0979" />
+                                    </linearGradient>
+                                    <linearGradient id="finalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#9b59b6" />
+                                        <stop offset="100%" stop-color="#8e44ad" />
+                                    </linearGradient>
+                                    <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="3" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                
+                                <!-- 标题 -->
+                                <text x="190" y="30" font-size="16" text-anchor="middle" font-weight="bold">LoRA工作原理</text>
+                                
+                                <!-- 原始参数矩阵 -->
+                                <rect x="70" y="60" width="240" height="80" rx="5" ry="5" fill="url(#pretrainedGradient)" filter="url(#glowEffect)"/>
+                                <text x="190" y="105" font-size="16" fill="white" text-anchor="middle" font-weight="bold">预训练权重矩阵 W</text>
+                                <text x="190" y="125" font-size="12" fill="white" text-anchor="middle">(冻结)</text>
+                                
+                                <!-- 加号 -->
+                                <text x="190" y="170" font-size="30" text-anchor="middle" font-weight="bold">+</text>
+                                
+                                <!-- 低秩矩阵分解 -->
+                                <rect x="50" y="200" width="80" height="160" rx="5" ry="5" fill="url(#loraGradient)" filter="url(#glowEffect)"/>
+                                <text x="90" y="260" font-size="20" fill="white" text-anchor="middle" writing-mode="tb" font-weight="bold">B</text>
+                                <text x="90" y="300" font-size="12" fill="white" text-anchor="middle" writing-mode="tb">(d×r)</text>
+                                <text x="90" y="320" font-size="10" fill="white" text-anchor="middle" writing-mode="tb">(可训练)</text>
+                                
+                                <text x="150" y="280" font-size="16" text-anchor="middle" font-weight="bold">×</text>
+                                
+                                <rect x="170" y="240" width="160" height="80" rx="5" ry="5" fill="url(#loraGradient)" filter="url(#glowEffect)"/>
+                                <text x="250" y="285" font-size="20" fill="white" text-anchor="middle" font-weight="bold">A</text>
+                                <text x="250" y="305" font-size="12" fill="white" text-anchor="middle">(r×k)</text>
+                                <text x="250" y="320" font-size="10" fill="white" text-anchor="middle">(可训练)</text>
+                                
+                                <!-- 等号 -->
+                                <text x="190" y="380" font-size="30" text-anchor="middle" font-weight="bold">=</text>
+                                
+                                <!-- 最终结果 -->
+                                <rect x="70" y="400" width="240" height="80" rx="5" ry="5" fill="url(#finalGradient)" filter="url(#glowEffect)"/>
+                                <text x="190" y="445" font-size="16" fill="white" text-anchor="middle" font-weight="bold">适应后的权重矩阵 W + ΔW</text>
+                                
+                                <!-- 秩的标记 -->
+                                <text x="25" y="280" font-size="14" text-anchor="middle">d</text>
+                                <text x="90" y="185" font-size="14" text-anchor="middle">r</text>
+                                <text x="250" y="230" font-size="14" text-anchor="middle">k</text>
+                                <text x="330" y="280" font-size="14" text-anchor="middle">r</text>
+                                
+                                <!-- 低秩说明 -->
+                                <text x="320" y="350" font-size="14" text-anchor="middle" font-style="italic" font-weight="bold">其中 r ≪ min(d,k)</text>
+                            </svg>
+                        </div>
+                        <p style="text-align: center; margin-top: 10px; font-weight: bold;">
+                            <span class="highlight">W + ΔW = W + BA</span>，其中B和A是低秩矩阵<br>
+                            典型的秩r设置为4-64之间，极大减少参数量
+                        </p>
+                    </div>
+                </div>
+                <div class="slide-number">7/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片8: Reparameterization方法 - AdaLoRA和QLoRA -->
+        <div class="slide" id="slide8">
+            <div class="slide-content">
+                <h2>Reparameterization方法: AdaLoRA和QLoRA</h2>
+                <div class="two-col">
+                    <div class="col">
+                        <h3>AdaLoRA</h3>
+                        <p>AdaLoRA是LoRA的<span class="highlight">自适应版本</span>，能根据重要性动态分配参数预算。</p>
+                        <ul>
+                            <li>为不同矩阵分配不同的秩，重要性高的矩阵得到更高的秩</li>
+                            <li>使用奇异值分解(SVD)重新参数化LoRA矩阵</li>
+                            <li>训练过程中动态裁剪不重要的奇异值</li>
+                            <li>比LoRA更高效地利用参数预算</li>
+                        </ul>
+                        <div class="diagram">
+                            <svg width="340" height="180" viewBox="0 0 340 180">
+                                <rect x="20" y="20" width="300" height="140" rx="10" ry="10" fill="#f8f9fa" stroke="#333"/>
+                                <text x="170" y="40" font-size="14" text-anchor="middle">AdaLoRA的自适应参数分配</text>
+                                
+                                <!-- 层1-重要性高 -->
+                                <rect x="40" y="60" width="120" height="30" rx="5" ry="5" fill="#3498db" fill-opacity="0.3"/>
+                                <text x="100" y="80" font-size="12" text-anchor="middle">层1（注意力, Q权重）</text>
+                                <rect x="170" y="60" width="130" height="30" rx="5" ry="5" fill="#e74c3c" fill-opacity="0.8"/>
+                                <text x="235" y="80" font-size="12" fill="white" text-anchor="middle">秩r=32（高重要性）</text>
+                                
+                                <!-- 层2-重要性中 -->
+                                <rect x="40" y="100" width="120" height="30" rx="5" ry="5" fill="#3498db" fill-opacity="0.3"/>
+                                <text x="100" y="120" font-size="12" text-anchor="middle">层2（注意力, K权重）</text>
+                                <rect x="170" y="100" width="90" height="30" rx="5" ry="5" fill="#e74c3c" fill-opacity="0.6"/>
+                                <text x="215" y="120" font-size="12" fill="white" text-anchor="middle">秩r=16（中等）</text>
+                                
+                                <!-- 层3-重要性低 -->
+                                <rect x="40" y="140" width="120" height="30" rx="5" ry="5" fill="#3498db" fill-opacity="0.3"/>
+                                <text x="100" y="160" font-size="12" text-anchor="middle">层3（注意力, V权重）</text>
+                                <rect x="170" y="140" width="50" height="30" rx="5" ry="5" fill="#e74c3c" fill-opacity="0.4"/>
+                                <text x="195" y="160" font-size="12" fill="white" text-anchor="middle">秩r=8（低）</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h3>QLoRA</h3>
+                        <p>QLoRA结合<span class="highlight">低秩适应和模型量化</span>，进一步降低显存需求。</p>
+                        <ul>
+                            <li>将预训练模型量化为4位(4-bit)精度</li>
+                            <li>在量化模型上应用LoRA进行微调</li>
+                            <li>引入额外技术提升稳定性：
+                                <ul>
+                                    <li>4位NormalFloat (NF4): 更适合神经网络权重的量化数据类型</li>
+                                    <li>双重量化：进一步减少内存占用</li>
+                                    <li>分页优化器：避免梯度计算中的内存峰值</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <div class="diagram">
+                            <svg width="340" height="250" viewBox="0 0 340 250">
+                                <rect x="20" y="20" width="300" height="210" rx="10" ry="10" fill="#f8f9fa" stroke="#333"/>
+                                <text x="170" y="40" font-size="14" text-anchor="middle">QLoRA工作原理</text>
+                                
+                                <!-- 原始FP16模型 -->
+                                <rect x="50" y="60" width="240" height="40" rx="5" ry="5" fill="#3498db"/>
+                                <text x="170" y="85" font-size="14" fill="white" text-anchor="middle">原始模型 (FP16/BF16)</text>
+                                
+                                <!-- 箭头 -->
+                                <path d="M170,100 L170,120" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                                <text x="195" y="115" font-size="12" text-anchor="start">量化</text>
+                                
+                                <!-- 量化模型 -->
+                                <rect x="50" y="120" width="240" height="40" rx="5" ry="5" fill="#16a085"/>
+                                <text x="170" y="145" font-size="14" fill="white" text-anchor="middle">量化模型 (4-bit NF4)</text>
+                                
+                                <!-- 箭头 -->
+                                <path d="M170,160 L170,180" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                                <text x="195" y="175" font-size="12" text-anchor="start">添加LoRA</text>
+                                
+                                <!-- QLoRA -->
+                                <rect x="50" y="180" width="240" height="40" rx="5" ry="5" fill="#e74c3c"/>
+                                <text x="170" y="205" font-size="14" fill="white" text-anchor="middle">QLoRA (4-bit主干 + FP16 LoRA适配器)</text>
+                                
+                                <!-- 内存节省 -->
+                                <path d="M300,85 L320,85 L320,205 L300,205" stroke="#9b59b6" stroke-width="2" stroke-dasharray="5,3" fill="none"/>
+                                <text x="330" y="145" font-size="14" fill="#9b59b6" transform="rotate(90,330,145)" text-anchor="middle">内存减少~75%</text>
+                                
+                                <!-- 箭头定义 -->
+                                <defs>
+                                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">8/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片9: 量化技术详解 -->
+        <div class="slide" id="slide9">
+            <div class="slide-content">
+                <h2>量化技术: 让大模型微调更高效</h2>
+                <p>量化是将高精度浮点数(如FP32或FP16)转换为低精度表示(如INT8或INT4)的过程，QLoRA充分利用了这一技术。</p>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>常见量化技术</h3>
+                        <div class="method-card">
+                            <h4>权重量化</h4>
+                            <p>将模型权重从高精度(32位/16位)转换到低精度(8位/4位)。</p>
+                            <ul>
+                                <li>线性量化: 等间隔映射原始值范围</li>
+                                <li>对数量化: 对小值提供更高精度</li>
+                                <li>NF4: 为神经网络优化的4位数据类型</li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>激活量化</h4>
+                            <p>量化神经网络的中间激活值。</p>
+                            <ul>
+                                <li>动态量化: 根据激活值范围动态调整</li>
+                                <li>静态量化: 使用预计算的量化参数</li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>量化感知训练(QAT)</h4>
+                            <p>在训练过程中模拟量化效果。</p>
+                            <ul>
+                                <li>前向传播时模拟量化，反向传播使用全精度</li>
+                                <li>使模型适应量化带来的精度损失</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h3>QLoRA中的关键量化创新</h3>
+                        <div class="diagram">
+                            <svg width="360" height="300" viewBox="0 0 360 300">
+                                <!-- 背景 -->
+                                <rect x="20" y="20" width="320" height="260" rx="10" ry="10" fill="#f8f9fa" stroke="#333"/>
+                                
+                                <!-- NF4数据类型 -->
+                                <rect x="40" y="40" width="280" height="70" rx="5" ry="5" fill="#16a085" fill-opacity="0.7"/>
+                                <text x="180" y="60" font-size="14" fill="white" text-anchor="middle" font-weight="bold">4位NormalFloat (NF4)</text>
+                                <text x="180" y="80" font-size="12" fill="white" text-anchor="middle">针对神经网络权重分布优化的量化数据类型</text>
+                                <text x="180" y="100" font-size="12" fill="white" text-anchor="middle">在常见权重分布上比INT4精度更高</text>
+                                
+                                <!-- 双重量化 -->
+                                <rect x="40" y="120" width="280" height="70" rx="5" ry="5" fill="#16a085" fill-opacity="0.7"/>
+                                <text x="180" y="140" font-size="14" fill="white" text-anchor="middle" font-weight="bold">双重量化</text>
+                                <text x="180" y="160" font-size="12" fill="white" text-anchor="middle">量化用于反量化的常量(量化比例尺和零点)</text>
+                                <text x="180" y="180" font-size="12" fill="white" text-anchor="middle">进一步减少约0.37GB内存使用</text>
+                                
+                                <!-- 分页优化器 -->
+                                <rect x="40" y="200" width="280" height="70" rx="5" ry="5" fill="#16a085" fill-opacity="0.7"/>
+                                <text x="180" y="220" font-size="14" fill="white" text-anchor="middle" font-weight="bold">分页优化器</text>
+                                <text x="180" y="240" font-size="12" fill="white" text-anchor="middle">将优化器状态卸载到CPU，按需加载到GPU</text>
+                                <text x="180" y="260" font-size="12" fill="white" text-anchor="middle">减少梯度计算和优化期间的内存峰值</text>
+                            </svg>
+                        </div>
+                        
+                        <h3>量化对准确度的影响</h3>
+                        <div class="comparison-table">
+                            <table style="width:100%">
+                                <tr>
+                                    <th>量化类型</th>
+                                    <th>内存减少</th>
+                                    <th>准确度影响</th>
+                                </tr>
+                                <tr>
+                                    <td>FP16→INT8</td>
+                                    <td>~50%</td>
+                                    <td>微小 (&lt;1%)</td>
+                                </tr>
+                                <tr>
+                                    <td>FP16→INT4</td>
+                                    <td>~75%</td>
+                                    <td>显著 (1-5%)</td>
+                                </tr>
+                                <tr>
+                                    <td>FP16→NF4</td>
+                                    <td>~75%</td>
+                                    <td>较小 (&lt;2%)</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">9/10</div>
+            </div>
+        </div>
+
+        <!-- 幻灯片10: 总结与对比 -->
+        <div class="slide" id="slide10">
+            <div class="slide-content">
+                <h2>PEFT方法对比与最佳实践</h2>
+                <div class="comparison-table">
+                    <table style="width:100%">
+                        <tr>
+                            <th>方法</th>
+                            <th>参数效率</th>
+                            <th>计算效率</th>
+                            <th>内存效率</th>
+                            <th>性能</th>
+                            <th>最适用场景</th>
+                        </tr>
+                        <tr>
+                            <td>Adapter</td>
+                            <td>中</td>
+                            <td>中</td>
+                            <td>中</td>
+                            <td>高</td>
+                            <td>需要通用适应且有中等计算资源时</td>
+                        </tr>
+                        <tr>
+                            <td>Prompt Tuning</td>
+                            <td>极高</td>
+                            <td>高</td>
+                            <td>高</td>
+                            <td>中-高</td>
+                            <td>模型规模极大，计算资源有限</td>
+                        </tr>
+                        <tr>
+                            <td>Prefix Tuning</td>
+                            <td>高</td>
+                            <td>中</td>
+                            <td>中-高</td>
+                            <td>高</td>
+                            <td>需要精确控制模型行为</td>
+                        </tr>
+                        <tr>
+                            <td>BitFit</td>
+                            <td>极高</td>
+                            <td>极高</td>
+                            <td>中</td>
+                            <td>中</td>
+                            <td>简单任务，极限资源受限场景</td>
+                        </tr>
+                        <tr>
+                            <td>LoRA</td>
+                            <td>高</td>
+                            <td>高</td>
+                            <td>高</td>
+                            <td>高-极高</td>
+                            <td>大多数场景下的首选方法</td>
+                        </tr>
+                        <tr>
+                            <td>QLoRA</td>
+                            <td>高</td>
+                            <td>中-高</td>
+                            <td>极高</td>
+                            <td>高</td>
+                            <td>消费级硬件上微调大模型</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <h3>选择PEFT方法的建议</h3>
+                <div class="two-col">
+                    <div class="col">
+                        <div class="method-card">
+                            <h4>对于超大模型(>20B参数)</h4>
+                            <ul>
+                                <li>首选: <span class="highlight">QLoRA</span> - 内存效率最高</li>
+                                <li>次选: <span class="highlight">LoRA/AdaLoRA</span> - 如果有足够GPU内存</li>
+                                <li>简单任务可考虑: <span class="highlight">Prompt Tuning</span></li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>对于中型模型(1B-20B参数)</h4>
+                            <ul>
+                                <li>首选: <span class="highlight">LoRA</span> - 平衡参数效率和性能</li>
+                                <li>次选: <span class="highlight">Prefix Tuning</span> - 对较复杂任务</li>
+                                <li>消费级GPU: <span class="highlight">QLoRA</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="method-card">
+                            <h4>对于小型模型(&lt;1B参数)</h4>
+                            <ul>
+                                <li>可考虑: <span class="highlight">全参数微调</span> - 如果有足够资源</li>
+                                <li>资源有限时: <span class="highlight">LoRA</span></li>
+                                <li>多任务场景: <span class="highlight">Adapter</span></li>
+                            </ul>
+                        </div>
+                        <div class="method-card">
+                            <h4>未来发展方向</h4>
+                            <ul>
+                                <li><span class="highlight">混合方法</span>: 结合多种PEFT技术优势</li>
+                                <li><span class="highlight">自动化</span>: 自动选择最优PEFT方法和参数</li>
+                                <li><span class="highlight">硬件优化</span>: 为特定PEFT方法定制化的硬件加速</li>
+                                <li><span class="highlight">极限压缩</span>: 进一步减少微调参数量</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-number">10/10</div>
+            </div>
+        </div>
+
+        <!-- 导航按钮 -->
+        <div class="navigation">
+            <button class="nav-button" id="prev-btn">上一页</button>
+            <button class="nav-button" id="next-btn">下一页</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const slides = document.querySelectorAll('.slide');
+            let currentSlide = 0;
+
+            function showSlide(n) {
+                slides.forEach(slide => slide.classList.remove('active'));
+                currentSlide = (n + slides.length) % slides.length;
+                slides[currentSlide].classList.add('active');
+            }
+
+            document.getElementById('next-btn').addEventListener('click', () => {
+                showSlide(currentSlide + 1);
+            });
+
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                showSlide(currentSlide - 1);
+            });
+
+            // 键盘控制
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    showSlide(currentSlide + 1);
+                } else if (e.key === 'ArrowLeft') {
+                    showSlide(currentSlide - 1);
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
