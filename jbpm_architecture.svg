@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景 -->
+    <rect width="100%" height="100%" fill="#ffffff"/>
+    
+    <!-- 流程定义 -->
+    <g transform="translate(50,50)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">流程定义 (Process Definition)</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#bbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">流程定义XML</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#bbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">开始节点</text>
+    </g>
+    
+    <!-- 流程实例 -->
+    <g transform="translate(400,50)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">流程实例 (Process Instance)</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#bfb" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">流程实例</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#bfb" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">运行中</text>
+    </g>
+    
+    <!-- 节点类型 -->
+    <g transform="translate(50,300)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">节点类型</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#bbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">状态节点</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#bbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">任务节点</text>
+    </g>
+    
+    <!-- 身份验证 -->
+    <g transform="translate(400,300)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">身份验证 (Identity)</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#fbb" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">用户</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#fbb" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">用户组</text>
+    </g>
+    
+    <!-- 事件系统 -->
+    <g transform="translate(50,550)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">事件系统 (Events)</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#fbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">事件</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#fbf" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">节点进入</text>
+    </g>
+    
+    <!-- 服务层 -->
+    <g transform="translate(400,550)">
+        <rect x="0" y="0" width="300" height="200" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+        <text x="10" y="30" font-size="16" font-weight="bold">服务层</text>
+        
+        <rect x="20" y="50" width="260" height="30" fill="#f9f" stroke="#333" stroke-width="1"/>
+        <text x="30" y="70" font-size="14">RepositoryService</text>
+        
+        <line x1="150" y1="80" x2="150" y2="100" stroke="#333" stroke-width="1"/>
+        <rect x="20" y="100" width="260" height="30" fill="#f9f" stroke="#333" stroke-width="1"/>
+        <text x="30" y="120" font-size="14">ExecutionService</text>
+    </g>
+    
+    <!-- 连接线 -->
+    <g stroke="#333" stroke-width="1">
+        <!-- 流程定义到流程实例 -->
+        <path d="M 350 150 L 400 150" fill="none"/>
+        <!-- 流程实例到节点类型 -->
+        <path d="M 550 250 L 550 300" fill="none"/>
+        <!-- 节点类型到身份验证 -->
+        <path d="M 350 400 L 400 400" fill="none"/>
+        <!-- 身份验证到事件系统 -->
+        <path d="M 550 500 L 550 550" fill="none"/>
+        <!-- 事件系统到服务层 -->
+        <path d="M 350 650 L 400 650" fill="none"/>
+    </g>
+</svg> 
