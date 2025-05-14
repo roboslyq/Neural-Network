@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库字段长度调整申请</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .slide {
+            width: 90%;
+            max-width: 1000px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            padding-bottom: 20px;
+        }
+        .header {
+            background: linear-gradient(90deg, #2c3e50 0%, #4b6cb7 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+        .header p {
+            margin: 10px 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 25px 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4b6cb7;
+        }
+        .problem-box {
+            background-color: #fff8f8;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        .solution-box {
+            background-color: #f1f9f1;
+            border-left: 4px solid #2ecc71;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            font-size: 14px;
+        }
+        th {
+            background-color: #4b6cb7;
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .new-value {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .systems {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .system-card {
+            flex: 1;
+            min-width: 200px;
+            background-color: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 15px;
+        }
+        .system-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .note {
+            font-size: 14px;
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        @media (max-width: 768px) {
+            .systems {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <h1>数据库字段长度调整申请</h1>
+            <p>解决债权导入过程中系统报错问题</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">1. 问题分析</h2>
+                <div class="problem-box">
+                    <p>经排查是由于<span class="highlight">债权导入时从启信宝获取的债务人对应法人代表名称过长</span>，导致债务同步入库失败。</p>
+                    <p>GIMS的债务人表的法人代表字段当前长度为<span class="highlight">varchar(20)</span>，无法满足实际数据需求。</p>
+                    <p>同时，为防止后续启信宝相关字段超长再次导致程序报错问题，此次排查出地址字段也需要调整，当前长度为<span class="highlight">varchar(100)</span>。</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">2. 解决方案</h2>
+                <div class="solution-box">
+                    <p>建议调整以下四个系统相关表格中的<span class="new-value">法人代表</span>和<span class="new-value">地址</span>两个字段的长度：</p>
+                </div>
+                
+                <div class="systems">
+                    <div class="system-card">
+                        <div class="system-title">对公业务中台</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>表名</th>
+                                    <th>字段</th>
+                                    <th>调整后长度</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td rowspan="2">borrower</td>
+                                    <td>ADDR</td>
+                                    <td><span class="new-value">varchar(2000)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>LEGAL_REP</td>
+                                    <td><span class="new-value">varchar(500)</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="system-card">
+                        <div class="system-title">核心业务系统</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>表名</th>
+                                    <th>字段</th>
+                                    <th>调整后长度</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>TASSET_LOANACCOUNT_INFO</td>
+                                    <td>C_REPRESENTATIVE</td>
+                                    <td><span class="new-value">varchar(1000)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>TCUSTOMER_INFO</td>
+                                    <td>C_ADDRESS</td>
+                                    <td><span class="new-value">varchar(4000)</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="systems" style="margin-top: 20px;">
+                    <div class="system-card">
+                        <div class="system-title">尽调估值</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>表名</th>
+                                    <th>字段</th>
+                                    <th>调整后长度</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>biz_debtor_info</td>
+                                    <td>representative</td>
+                                    <td><span class="new-value">varchar(500)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>biz_customer_info</td>
+                                    <td>address</td>
+                                    <td><span class="new-value">varchar(2000)</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="system-card">
+                        <div class="system-title">报表平台</div>
+                        <p style="text-align: center; margin: 30px 0;">详情见附件：<br><span style="font-weight: bold;">《报表平台表结构调整20250328.txt》</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">3. 调整影响分析</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>影响面</th>
+                                <th>分析结果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>业务影响</td>
+                                <td>无业务逻辑变更，仅字段长度变更</td>
+                            </tr>
+                            <tr>
+                                <td>数据库性能</td>
+                                <td>字段长度变更后可能微量影响索引性能，但对整体性能影响极小</td>
+                            </tr>
+                            <tr>
+                                <td>存储空间</td>
+                                <td>varchar类型按实际使用长度存储，合理调整不会造成空间浪费</td>
+                            </tr>
+                            <tr>
+                                <td>系统稳定性</td>
+                                <td>解决当前系统报错问题，提高系统稳定性</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="note">
+                <p>建议在系统低峰期执行数据库变更操作，并做好变更前的数据备份</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>技术支持部 | 申请日期：2025年3月28日</p>
+        </div>
+    </div>
+</body>
+</html> 

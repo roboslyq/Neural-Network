@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nginx日志分析报告</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .chart-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .chart {
+            max-width: 100%;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .summary {
+            background: #eaf6ff;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 18px;
+            line-height: 1.8;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nginx日志分析报告</h1>
+        
+        <div class="section summary">
+            <h2>数据概览</h2>
+            <p>分析时间段: 2024-05-17 至 2025-05-14</p>
+            <p>总访问量: 8063次</p>
+            <p>独立IP数: 126个</p>
+            <p>平均每日访问量: 51.36次</p>
+            <p>成功请求比例(2xx状态码): 97.47%</p>
+        </div>
+        
+        <div class="section">
+            <h2>月访问量趋势</h2>
+            <div class="chart-container">
+                <img src="monthly_visits.png" alt="月访问量统计" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>每日访问热力图</h2>
+            <div class="chart-container">
+                <img src="daily_heatmap.png" alt="日访问量热力图" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>每小时访问趋势</h2>
+            <div class="chart-container">
+                <img src="hourly_visits.png" alt="每小时访问趋势" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>热门访问路径</h2>
+            <div class="chart-container">
+                <img src="top_paths.png" alt="热门访问路径" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>HTTP状态码分布</h2>
+            <div class="chart-container">
+                <img src="status_codes.png" alt="HTTP状态码分布" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>浏览器分布</h2>
+            <div class="chart-container">
+                <img src="browser_distribution.png" alt="浏览器分布" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>操作系统分布</h2>
+            <div class="chart-container">
+                <img src="os_distribution.png" alt="操作系统分布" class="chart">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>访问量最大的IP</h2>
+            <div class="chart-container">
+                <img src="top_ips.png" alt="访问量最大的IP" class="chart">
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>报告生成时间: 2025-05-14 17:20:18</p>
+        </div>
+    </div>
+</body>
+</html>
