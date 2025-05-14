@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Function Calling: 大语言模型的能力延伸</title>
+    <style>
+        /* 复用之前的基础样式 */
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .slide {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0a192f, #112240);
+        }
+        
+        .slide.active {
+            opacity: 1;
+            z-index: 1;
+        }
+        
+        .slide-content {
+            width: 90%;
+            max-width: 1600px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            height: 85vh;
+            overflow-y: auto;
+        }
+        
+        .slide-image {
+            width: 100%;
+            max-width: 600px;
+            margin: 15px auto;
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .title-slide .slide-content {
+            background: linear-gradient(135deg, #0a192f 0%, #112240 100%);
+            position: relative;
+            overflow: hidden;
+            color: white;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 80%;
+        }
+        
+        .title-slide .slide-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(64, 144, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 99, 71, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .title-slide h1 {
+            font-size: 3.8em;
+            background: linear-gradient(120deg, #64B5F6 0%, #2196F3 50%, #1976D2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .title-slide p {
+            font-size: 1.7em;
+            color: #64B5F6;
+            margin: 20px 0;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .title-slide .subtitle {
+            font-size: 1.3em;
+            margin-top: 35px;
+            color: #90CAF9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .title-slide .footer {
+            margin-top: 45px;
+            font-size: 1.2em;
+            color: #81D4FA;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .title-slide p span {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 4px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .two-column {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            margin-top: 10px !important;
+            height: calc(100% - 60px);
+        }
+        
+        .column {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .column::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .column::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+        
+        .column::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .slide-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+            text-align: center;
+        }
+        
+        .code-block {
+            background: #1e1e1e;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+            margin: 8px 0;
+            color: #d4d4d4;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #333;
+        }
+        
+        .code-block .json-key {
+            color: #9cdcfe;
+        }
+        
+        .code-block .json-string {
+            color: #ce9178;
+        }
+        
+        .code-block .json-number {
+            color: #b5cea8;
+        }
+        
+        .code-block .json-boolean {
+            color: #569cd6;
+        }
+        
+        .code-block .json-null {
+            color: #569cd6;
+        }
+        
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .note {
+            font-size: 0.85em;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+        }
+        
+        .controls button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #slide-counter {
+            font-size: 16px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 15px;
+        }
+        
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+        
+        @media (max-width: 1200px) {
+            .slide-content {
+                width: 95%;
+                padding: 20px 25px;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                flex-direction: column;
+            }
+            
+            .chart-container {
+                height: 200px;
+            }
+        }
+        
+        .ascii-diagram {
+            font-family: 'Consolas', monospace;
+            white-space: pre;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .slide-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .slide-section h3 {
+            color: #64B5F6;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.4em;
+            border-bottom: 2px solid #64B5F6;
+            padding-bottom: 5px;
+        }
+
+        .slide-section ul {
+            padding-left: 15px;
+            margin-bottom: 0;
+        }
+
+        .slide-section li {
+            margin-bottom: 8px;
+        }
+
+        .slide-section strong {
+            color: #90CAF9;
+        }
+
+        .slide-section .sub-list {
+            margin-left: 15px;
+            font-size: 0.9em;
+            list-style-type: circle;
+            margin-top: 5px;
+            color: #ccc;
+        }
+
+        .limitations-svg {
+            width: 100%;
+            max-width: 800px;
+            display: block;
+            margin: 15px auto 10px;
+            border-radius: 8px;
+        }
+
+        .overview-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .overview-column .note {
+            margin-top: auto; /* Push note to the bottom */
+        }
+
+        .process-step {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .process-step h4 {
+            color: #64B5F6;
+            margin: 0 0 8px 0;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+        }
+
+        .process-step h4::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #64B5F6;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        .process-step p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .flow-diagram {
+            position: relative;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .interaction-flow {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .interaction-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .interaction-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 35px;
+            bottom: -15px;
+            width: 2px;
+            background: #64B5F6;
+            opacity: 0.3;
+        }
+
+        .step-number {
+            width: 35px;
+            height: 35px;
+            background: #64B5F6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            color: #64B5F6;
+            margin: 0 0 6px 0;
+            font-size: 1em;
+        }
+
+        .step-description {
+            color: #666;
+            margin: 0 0 8px 0;
+            font-size: 0.85em;
+            line-height: 1.3;
+        }
+
+        .step-note {
+            background: rgba(100, 181, 246, 0.1);
+            border-left: 3px solid #64B5F6;
+            padding: 6px 10px;
+            margin-top: 6px;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .execution-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .execution-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .execution-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64B5F6;
+            font-size: 1.2em;
+        }
+
+        .execution-icon {
+            width: 50px;
+            height: 50px;
+            background: #64B5F6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .execution-title {
+            color: #64B5F6;
+            margin: 0 0 5px;
+            font-size: 0.9em;
+        }
+
+        .execution-desc {
+            color: #666;
+            font-size: 0.8em;
+            line-height: 1.3;
+        }
+
+        .tool-registration {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-registration h4 {
+            color: #64B5F6;
+            margin: 0 0 10px;
+            font-size: 1.1em;
+        }
+
+        .tool-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .tool-item {
+            background: rgba(100, 181, 246, 0.1);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+
+        .tool-item strong {
+            color: #64B5F6;
+            display: block;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <!-- 封面页 -->
+        <div class="slide">
+            <div class="slide-content title-slide">
+                <h1>Function Calling</h1>
+                <p><span>大语言模型的能力延伸与工具使用</span></p>
+                <p class="subtitle"><span>从原理到实践的深度解析</span></p>
+            </div>
+        </div>
+        
+        <!-- 目录页 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">内容概览</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <h3>基础概念</h3>
+                        <ul>
+                            <li>Function Calling的定义</li>
+                            <li>产生背景与发展历程</li>
+                            <li>核心价值与应用场景</li>
+                        </ul>
+                        
+                        <h3>技术原理</h3>
+                        <ul>
+                            <li>工作机制与实现方式</li>
+                            <li>函数描述格式</li>
+                            <li>调用流程解析</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="column">
+                        <h3>实践应用</h3>
+                        <ul>
+                            <li>常见应用场景</li>
+                            <li>最佳实践指南</li>
+                            <li>性能优化策略</li>
+                        </ul>
+                        
+                        <h3>挑战与展望</h3>
+                        <ul>
+                            <li>技术难点分析</li>
+                            <li>安全性考虑</li>
+                            <li>未来发展方向</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Function Calling概述 (优化布局) -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling: 让语言模型拥有「行动力」</h2>
+
+                <img src="images/llm-limitations-bridge.svg" alt="LLM Limitations and Function Calling Bridge" class="limitations-svg">
+
+                <div class="two-column">
+                    <div class="column overview-column">
+                        <div class="slide-section">
+                            <h3>定义与本质</h3>
+                            <ul>
+                                <li><strong>核心定义</strong>：赋予LLM理解何时需调用外部工具(函数/API)并生成结构化调用指令的能力。</li>
+                                <li><strong>关键转变</strong>：从「文本生成器」转变为「智能代理」。</li>
+                                <li><strong>本质</strong>：结构化的、可预测的交互机制，让LLM超越文本，实现具体操作。</li>
+                                <li><strong>类比</strong>：LLM是大脑，Function Calling是连接大脑和「手」(工具)的神经。</li>
+                            </ul>
+                        </div>
+                        <div class="note" style="background: #e3f2fd; border-left-color: #2196f3;">
+                            <strong>核心价值</strong>：极大扩展LLM的应用边界，使其能够查询实时信息、操作数据、控制设备等。
+                        </div>
+                    </div>
+                    
+                    <div class="column overview-column">
+                        <div class="slide-section">
+                            <h3>LLM的固有局限性 (为何需要FC?)</h3>
+                            <ul>
+                                <li><strong>知识截止</strong>: <span style="color:#ccc;">(训练数据过时)</span></li>
+                                <li><strong>计算限制</strong>: <span style="color:#ccc;">(不擅长精确运算)</span></li>
+                                <li><strong>交互缺失</strong>: <span style="color:#ccc;">(无法操作外部)</span></li>
+                            </ul>
+                            <div class="note" style="background: #fff3e0; border-left-color: #ff9800; font-size: 0.9em; margin-top: 10px;">
+                                <strong>根源</strong>：LLM是概率文本预测模型，非通用计算系统。
+                            </div>
+                        </div>
+                        <div class="slide-section">
+                            <h3>Function Calling 的解决方案</h3>
+                            <ul>
+                                <li><strong>调用API</strong>: 获取实时信息</li>
+                                <li><strong>调用计算函数</strong>: 执行精确运算</li>
+                                <li><strong>调用外部接口</strong>: 实现系统交互</li>
+                            </ul>
+                        </div>
+                        <div class="note" style="background: #e8f5e9; border-left-color: #4caf50;">
+                            <strong>FC优势</strong>：通过"工具调用"机制，优雅地弥补LLM的不足，赋能AI成为真正的"智能代理"。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 工作机制 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling工作机制</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <div class="process-step">
+                            <h4>基本流程</h4>
+                            <ol>
+                                <li><strong>函数注册</strong>：向LLM提供可用函数的描述</li>
+                                <li><strong>需求识别</strong>：LLM理解用户意图并选择合适的函数</li>
+                                <li><strong>参数生成</strong>：构造符合函数签名的参数</li>
+                                <li><strong>函数执行</strong>：调用实际函数并获取结果</li>
+                                <li><strong>结果整合</strong>：将函数返回结果融入对话上下文</li>
+                            </ol>
+                        </div>
+
+                        <div class="execution-flow">
+                            <div class="execution-step">
+                                <div class="execution-icon">1</div>
+                                <h5 class="execution-title">应用层</h5>
+                                <p class="execution-desc">注册可用函数<br>定义函数接口</p>
+                            </div>
+                            <div class="execution-step">
+                                <div class="execution-icon">2</div>
+                                <h5 class="execution-title">LLM层</h5>
+                                <p class="execution-desc">理解用户意图<br>选择合适函数</p>
+                            </div>
+                            <div class="execution-step">
+                                <div class="execution-icon">3</div>
+                                <h5 class="execution-title">执行层</h5>
+                                <p class="execution-desc">实际执行函数<br>返回处理结果</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-registration">
+                            <h4>工具函数注册机制</h4>
+                            <p class="step-description">应用在启动时向LLM注册可用的工具函数，包括：</p>
+                            <div class="tool-list">
+                                <div class="tool-item">
+                                    <strong>基础工具</strong>
+                                    搜索、计算、时间处理等
+                                </div>
+                                <div class="tool-item">
+                                    <strong>业务工具</strong>
+                                    订单处理、用户管理等
+                                </div>
+                                <div class="tool-item">
+                                    <strong>系统工具</strong>
+                                    文件操作、网络请求等
+                                </div>
+                                <div class="tool-item">
+                                    <strong>第三方API</strong>
+                                    天气、地图、支付等
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <img class="slide-image" src="images/function-flow.svg" alt="Function Calling Flow">
+                    </div>
+                    
+                    <div class="column">
+                        <div class="interaction-flow">
+                            <h4>实际交互示例</h4>
+                            
+                            <div class="interaction-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h5 class="step-title">用户提问</h5>
+                                    <p class="step-description">用户询问北京的天气情况</p>
+                                    <div class="code-block">
+                                        <pre><span class="json-key">{</span>
+  <span class="json-key">"role"</span>: <span class="json-string">"user"</span>,
+  <span class="json-key">"content"</span>: <span class="json-string">"北京今天天气怎么样？"</span>
+<span class="json-key">}</span></pre>
+                                    </div>
+                                    <div class="step-note">
+                                        LLM理解这是一个天气查询请求，需要调用天气查询函数
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="interaction-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h5 class="step-title">LLM调用函数</h5>
+                                    <p class="step-description">LLM决定调用天气查询函数，并构造参数</p>
+                                    <div class="code-block">
+                                        <pre><span class="json-key">{</span>
+  <span class="json-key">"role"</span>: <span class="json-string">"assistant"</span>,
+  <span class="json-key">"content"</span>: <span class="json-null">null</span>,
+  <span class="json-key">"function_call"</span>: <span class="json-key">{</span>
+    <span class="json-key">"name"</span>: <span class="json-string">"get_weather"</span>,
+    <span class="json-key">"arguments"</span>: <span class="json-key">{</span>
+      <span class="json-key">"city"</span>: <span class="json-string">"北京"</span>,
+      <span class="json-key">"date"</span>: <span class="json-string">"2024-03-21"</span>
+    <span class="json-key">}</span>
+  <span class="json-key">}</span>
+<span class="json-key">}</span></pre>
+                                    </div>
+                                    <div class="step-note">
+                                        LLM自动提取了城市名称，并添加了当前日期作为参数
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="interaction-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h5 class="step-title">函数执行与返回</h5>
+                                    <p class="step-description">应用层执行函数调用并返回结果</p>
+                                    <div class="code-block">
+                                        <pre><span class="json-key">{</span>
+  <span class="json-key">"role"</span>: <span class="json-string">"function"</span>,
+  <span class="json-key">"name"</span>: <span class="json-string">"get_weather"</span>,
+  <span class="json-key">"content"</span>: <span class="json-key">{</span>
+    <span class="json-key">"temperature"</span>: <span class="json-number">18</span>,
+    <span class="json-key">"weather"</span>: <span class="json-string">"晴"</span>,
+    <span class="json-key">"humidity"</span>: <span class="json-number">45</span>
+  <span class="json-key">}</span>
+<span class="json-key">}</span></pre>
+                                    </div>
+                                    <div class="step-note">
+                                        LLM收到天气数据后，会将其转换为自然语言回复给用户
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="process-step">
+                            <h4>执行机制说明</h4>
+                            <ul>
+                                <li><strong>函数注册</strong>：
+                                    <ul>
+                                        <li>应用启动时注册可用函数</li>
+                                        <li>使用JSON Schema定义接口</li>
+                                        <li>包含函数描述和参数说明</li>
+                                    </ul>
+                                </li>
+                                <li><strong>执行流程</strong>：
+                                    <ul>
+                                        <li>LLM只负责识别和参数构造</li>
+                                        <li>实际函数由应用层执行</li>
+                                        <li>结果通过标准格式返回</li>
+                                    </ul>
+                                </li>
+                                <li><strong>安全控制</strong>：
+                                    <ul>
+                                        <li>函数调用权限管理</li>
+                                        <li>参数验证和过滤</li>
+                                        <li>执行结果安全检查</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 应用场景 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling应用场景</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <h3>典型应用场景</h3>
+                        <img class="slide-image" src="images/application-scenarios.svg" alt="Function Calling Applications">
+                        <ul>
+                            <li><strong>智能助手</strong>：
+                                <ul>
+                                    <li>日程管理</li>
+                                    <li>信息查询</li>
+                                    <li>任务自动化</li>
+                                </ul>
+                            </li>
+                            <li><strong>数据处理</strong>：
+                                <ul>
+                                    <li>数据转换</li>
+                                    <li>格式化输出</li>
+                                    <li>数据验证</li>
+                                </ul>
+                            </li>
+                            <li><strong>系统集成</strong>：
+                                <ul>
+                                    <li>API调用</li>
+                                    <li>服务编排</li>
+                                    <li>工作流自动化</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="column">
+                        <h3>实现示例</h3>
+                        <div class="code-block">
+                            <pre>
+async function handleUserQuery(query) {
+  const functions = [{
+    name: "search_database",
+    description: "搜索数据库中的信息",
+    parameters: {
+      type: "object",
+      properties: {
+        keyword: {
+          type: "string",
+          description: "搜索关键词"
+        },
+        filter: {
+          type: "object",
+          description: "搜索过滤条件"
+        }
+      },
+      required: ["keyword"]
+    }
+  }];
+
+  const response = await model.chat({
+    messages: [{ role: "user", content: query }],
+    functions: functions,
+    function_call: "auto"
+  });
+
+  if (response.function_call) {
+    const result = await executeFunctionCall(
+      response.function_call
+    );
+    return formatResponse(result);
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 技术难点 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling技术难点</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <h3>核心挑战</h3>
+                        <ul>
+                            <li><strong>参数解析准确性</strong>：
+                                <ul>
+                                    <li>复杂参数结构处理</li>
+                                    <li>模糊输入理解</li>
+                                    <li>多值参数处理</li>
+                                </ul>
+                            </li>
+                            <li><strong>函数选择准确性</strong>：
+                                <ul>
+                                    <li>意图理解偏差</li>
+                                    <li>相似函数区分</li>
+                                    <li>组合调用决策</li>
+                                </ul>
+                            </li>
+                            <li><strong>错误处理</strong>：
+                                <ul>
+                                    <li>参数验证失败</li>
+                                    <li>函数执行异常</li>
+                                    <li>重试策略设计</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="column">
+                        <h3>解决策略</h3>
+                        <ul>
+                            <li><strong>提升准确性</strong>：
+                                <ul>
+                                    <li>详细的函数描述</li>
+                                    <li>示例输入输出</li>
+                                    <li>参数约束定义</li>
+                                </ul>
+                            </li>
+                            <li><strong>健壮性设计</strong>：
+                                <ul>
+                                    <li>参数默认值</li>
+                                    <li>类型转换处理</li>
+                                    <li>异常恢复机制</li>
+                                </ul>
+                            </li>
+                            <li><strong>性能优化</strong>：
+                                <ul>
+                                    <li>缓存机制</li>
+                                    <li>并行调用</li>
+                                    <li>结果复用</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <div class="note">
+                            关键是在准确性、健壮性和性能之间找到平衡点
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 最佳实践 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling最佳实践</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <h3>设计原则</h3>
+                        <ul>
+                            <li><strong>函数粒度</strong>：
+                                <ul>
+                                    <li>单一职责原则</li>
+                                    <li>适当的抽象层次</li>
+                                    <li>清晰的功能边界</li>
+                                </ul>
+                            </li>
+                            <li><strong>参数设计</strong>：
+                                <ul>
+                                    <li>必要性原则</li>
+                                    <li>类型明确性</li>
+                                    <li>合理的默认值</li>
+                                </ul>
+                            </li>
+                            <li><strong>错误处理</strong>：
+                                <ul>
+                                    <li>明确的错误类型</li>
+                                    <li>友好的错误提示</li>
+                                    <li>恢复机制设计</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="column">
+                        <h3>实现技巧</h3>
+                        <div class="code-block">
+                            <pre>
+// 函数定义最佳实践
+const functionDefinitions = [{
+  name: "create_calendar_event",
+  description: "创建日历事件",
+  parameters: {
+    type: "object",
+    properties: {
+      title: {
+        type: "string",
+        description: "事件标题"
+      },
+      start_time: {
+        type: "string",
+        description: "开始时间 (ISO8601格式)",
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      },
+      duration_minutes: {
+        type: "integer",
+        description: "持续时间(分钟)",
+        minimum: 1,
+        maximum: 1440,
+        default: 60
+      }
+    },
+    required: ["title", "start_time"]
+  }
+}];</pre>
+                        </div>
+                        <div class="note">
+                            良好的函数设计可以显著提升调用成功率和用户体验
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 未来展望 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Function Calling的未来展望</h2>
+                <div class="two-column">
+                    <div class="column">
+                        <h3>技术演进方向</h3>
+                        <img class="slide-image" src="images/future-vision.svg" alt="Future of Function Calling">
+                        <ul>
+                            <li><strong>能力增强</strong>：
+                                <ul>
+                                    <li>更复杂的参数推理</li>
+                                    <li>多函数组合调用</li>
+                                    <li>上下文理解深化</li>
+                                </ul>
+                            </li>
+                            <li><strong>集成深化</strong>：
+                                <ul>
+                                    <li>更多API生态接入</li>
+                                    <li>跨平台互操作性</li>
+                                    <li>标准化协议</li>
+                                </ul>
+                            </li>
+                            <li><strong>智能化提升</strong>：
+                                <ul>
+                                    <li>自动函数发现</li>
+                                    <li>动态函数生成</li>
+                                    <li>自适应调用优化</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="column">
+                        <h3>应用前景</h3>
+                        <ul>
+                            <li><strong>智能助手升级</strong>：
+                                <ul>
+                                    <li>更强的工具使用能力</li>
+                                    <li>复杂任务自动化</li>
+                                    <li>个性化服务适配</li>
+                                </ul>
+                            </li>
+                            <li><strong>开发模式革新</strong>：
+                                <ul>
+                                    <li>API优先设计</li>
+                                    <li>智能化集成测试</li>
+                                    <li>自动化代码生成</li>
+                                </ul>
+                            </li>
+                            <li><strong>生态系统演进</strong>：
+                                <ul>
+                                    <li>函数市场形成</li>
+                                    <li>智能服务编排</li>
+                                    <li>跨平台协作增强</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <div class="note">
+                            Function Calling将成为AI系统与现实世界交互的重要桥梁
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 结束页 -->
+        <div class="slide">
+            <div class="slide-content title-slide">
+                <h1>谢谢观看</h1>
+                <p><span>Function Calling: 连接AI与现实世界的桥梁</span></p>
+                <div class="footer">
+                    <p><span>本演示涵盖了Function Calling的核心概念、技术实现、应用场景和未来展望</span></p>
+                    <p><span>期待这项技术在AI领域带来更多创新和突破</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 导航控制 -->
+        <div class="controls">
+            <button id="prev-btn">上一页</button>
+            <span id="slide-counter">1 / 9</span>
+            <button id="next-btn">下一页</button>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                // 加载ASCII图表
+                async function loadAsciiDiagram(file, elementId) {
+                    try {
+                        const response = await fetch(file);
+                        const text = await response.text();
+                        document.getElementById(elementId).textContent = text;
+                    } catch (error) {
+                        console.error('Error loading diagram:', error);
+                    }
+                }
+                
+                // 加载所有图表
+                loadAsciiDiagram('images/function-flow.txt', 'flow-diagram');
+                loadAsciiDiagram('images/application-scenarios.txt', 'scenarios-diagram');
+                loadAsciiDiagram('images/future-vision.txt', 'future-diagram');
+                
+                const slides = document.querySelectorAll('.slide');
+                const totalSlides = slides.length;
+                const slideCounter = document.getElementById('slide-counter');
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+                
+                let currentSlide = 0;
+                
+                slides[0].classList.add('active');
+                updateCounter();
+                
+                function updateCounter() {
+                    slideCounter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+                }
+                
+                function nextSlide() {
+                    if (currentSlide < totalSlides - 1) {
+                        slides[currentSlide].classList.remove('active');
+                        currentSlide++;
+                        slides[currentSlide].classList.add('active');
+                        updateCounter();
+                    }
+                }
+                
+                function prevSlide() {
+                    if (currentSlide > 0) {
+                        slides[currentSlide].classList.remove('active');
+                        currentSlide--;
+                        slides[currentSlide].classList.add('active');
+                        updateCounter();
+                    }
+                }
+                
+                prevBtn.addEventListener('click', prevSlide);
+                nextBtn.addEventListener('click', nextSlide);
+                
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'ArrowRight' || e.key === ' ') {
+                        nextSlide();
+                    } else if (e.key === 'ArrowLeft') {
+                        prevSlide();
+                    }
+                });
+
+                // 添加图表动画
+                document.querySelectorAll('.chart-container').forEach(chart => {
+                    chart.style.opacity = '0';
+                    chart.style.transform = 'translateY(20px)';
+                    chart.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                });
+            });
+
+            // 切换幻灯片时触发动画
+            function showSlide(index) {
+                // ... 原有的切换逻辑 ...
+                
+                // 触发当前页面的图表动画
+                const currentCharts = slides[index].querySelectorAll('.chart-container');
+                currentCharts.forEach(chart => {
+                    setTimeout(( ) => {
+                        chart.style.opacity = '1';
+                        chart.style.transform = 'translateY(0)';
+                    }, 300);
+                });
+            }
+        </script>
+    </div>
+</body>
+</html> 

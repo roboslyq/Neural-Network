@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="300" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#357abd;stop-opacity:1" />
+        </linearGradient>
+        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#2c3e50"/>
+        </marker>
+    </defs>
+    
+    <!-- 背景 -->
+    <rect width="800" height="300" fill="#f8f9fa" rx="10" ry="10"/>
+    
+    <!-- 标题 -->
+    <text x="400" y="50" font-family="Microsoft YaHei, Arial" font-size="24" fill="#2c3e50" text-anchor="middle">Function Calling 工作机制</text>
+    
+    <!-- 方框 -->
+    <rect x="50" y="100" width="200" height="100" rx="5" ry="5" fill="url(#grad1)" stroke="#2c3e50" stroke-width="2"/>
+    <rect x="300" y="100" width="200" height="100" rx="5" ry="5" fill="url(#grad1)" stroke="#2c3e50" stroke-width="2"/>
+    <rect x="550" y="100" width="200" height="100" rx="5" ry="5" fill="url(#grad1)" stroke="#2c3e50" stroke-width="2"/>
+    
+    <!-- 文本 -->
+    <text x="150" y="150" font-family="Microsoft YaHei, Arial" font-size="16" fill="white" text-anchor="middle">用户输入/意图识别</text>
+    <text x="400" y="150" font-family="Microsoft YaHei, Arial" font-size="16" fill="white" text-anchor="middle">函数匹配与参数生成</text>
+    <text x="650" y="150" font-family="Microsoft YaHei, Arial" font-size="16" fill="white" text-anchor="middle">函数执行与结果返回</text>
+    
+    <!-- 箭头 -->
+    <path d="M250 150 L300 150" stroke="#2c3e50" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+    <path d="M500 150 L550 150" stroke="#2c3e50" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+    
+    <!-- 循环箭头 -->
+    <path d="M650 200 C650 250 400 250 400 200" stroke="#2c3e50" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+    
+    <!-- 底部文本 -->
+    <text x="400" y="280" font-family="Microsoft YaHei, Arial" font-size="16" fill="#2c3e50" text-anchor="middle">结果整合到对话上下文</text>
+</svg> 
